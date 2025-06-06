@@ -1,0 +1,33 @@
+{
+  "name": "lead-manager-be",
+  "version": "1.0.0",
+  "description": "lead management system",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Amarya-Tech/Lead-manager-BE.git"
+  },
+  "author": "Sanjana Jain",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Amarya-Tech/Lead-manager-BE/issues"
+  },
+  "homepage": "https://github.com/Amarya-Tech/Lead-manager-BE#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.0",
+    "mysql2": "^3.14.1",
+    "uuid": "^11.1.0"
+  }
+}

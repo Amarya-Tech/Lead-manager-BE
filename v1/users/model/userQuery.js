@@ -1,0 +1,58 @@
+import pool from "../../../config/db.js"
+
+export const checkUserEmailQuery = (array)=>{
+    try {
+        let query = `SELECT * FROM users WHERE email = ?`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing checkUserEmailQuery:", error);
+        throw error;
+    }
+}
+
+export const userRegistrationQuery = (array)=> {
+    try {
+        let query = `INSERT INTO users (
+            id,
+            first_name,
+            last_name,
+            email,
+            password_hash,
+            phone
+        ) VALUES (?,?,?,?,?,?)`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing userRegistrationQuery:", error);
+        throw error;
+    }
+}
+
+export const updateTokenQuery = (array) => {
+    try {
+        let query = `UPDATE users SET jwt_token = ? WHERE id = ?`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing updateTokenQuery:", error);
+        throw error;
+    }
+}
+
+export const checkUserIdQuery = (array)=>{
+    try {
+        let query = `SELECT * FROM users WHERE id = ?`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing checkUserEmailQuery:", error);
+        throw error;
+    }
+}
+
+export const updateUserActiveStatusQuery = (array) => {
+    try {
+        let query = `UPDATE users SET is_active = ? WHERE id = ?`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing updateUserActiveStatusQuery:", error);
+        throw error;
+    }
+}
