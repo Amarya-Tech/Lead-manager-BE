@@ -11,7 +11,7 @@ export const userRegVal = [
     body('first_name').notEmpty().withMessage('First name cannot be empty.').isString().withMessage("First name must be a string."),
     body('last_name').notEmpty().withMessage('Last name cannot be empty.').isString().withMessage("Last name must be a string."),
     body('email').isEmail().withMessage('Invalid email input.').notEmpty().withMessage('Email cannot be empty.'),
-    body('password_hash').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long').notEmpty().withMessage('Password cannot be empty.').custom(passwordValidation),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long').notEmpty().withMessage('Password cannot be empty.').custom(passwordValidation),
     body('phone').isInt().withMessage('Phone number should be an integer').isLength({ min: 10, max: 10 }).withMessage('Phone number must be of 10 digits.'),
 ]
 
@@ -27,6 +27,11 @@ export const logOutVal = [
 export const setUserStatusVal = [
     body('id').notEmpty().withMessage('Id cannot be empty.').isUUID().withMessage('Invalid UUID format.'),
     body('is_active').notEmpty().withMessage('Status cannot be empty.').isBoolean().withMessage('Status must be a boolean value (true or false).')
+]
+
+export const setUserRoleVal = [
+    body('id').notEmpty().withMessage('Id cannot be empty.').isUUID().withMessage('Invalid UUID format.'),
+    body('role').notEmpty().withMessage('Role cannot be empty.').isString().withMessage("Role must be a string.")
 ]
 
 export const createLeadVal = [
@@ -67,4 +72,16 @@ export const updateLeadOfcVal = [
 export const updateLeadContactVal = [
      param('lead_id').notEmpty().withMessage('Lead id cannot be empty.'),
      param('contact_id').notEmpty().withMessage('Contact id cannot be empty.')
+]
+
+export const addAssigneeVal = [
+    body('lead_id').notEmpty().withMessage('Lead Id cannot be empty.').isUUID().withMessage('Lead Id must be a valid UUID.'),
+    body('assignee_id').notEmpty().withMessage('Assignee Id cannot be empty.').isUUID().withMessage('Assignee Id must be a valid UUID.'),
+    body('description').optional().isString().withMessage("Description must be a string.")
+]
+
+export const addCommnentVal = [
+    param('id').notEmpty().withMessage('User id cannot be empty.'),
+    body('lead_communication_id').notEmpty().withMessage('Lead Id cannot be empty.').isUUID().withMessage('Lead Id must be a valid UUID.'),
+    body('comment').notEmpty().withMessage('Comment cannot be empty.').isString().withMessage("Comment must be a string.")
 ]

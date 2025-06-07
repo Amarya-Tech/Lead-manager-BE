@@ -5,7 +5,7 @@ import dotenv from "dotenv"
 import crypto from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
-import { checkUserEmailQuery, checkUserIdQuery, updateTokenQuery, updateUserActiveStatusQuery, userRegistrationQuery } from "../model/userQuery.js";
+import { checkUserEmailQuery, checkUserIdQuery, updateTokenQuery, updateUserActiveStatusQuery, updateUserRoleQuery, userRegistrationQuery } from "../model/userQuery.js";
 
 dotenv.config();
 
@@ -124,7 +124,6 @@ export const userLogout = async (req, res, next) => {
     }
 }
 
-
 export const setUserStatus = async (req, res, next) => {
     try {
         const errors = validationResult(req);
@@ -145,6 +144,35 @@ export const setUserStatus = async (req, res, next) => {
         }
 
         return successResponse(res, data, `User active status changed successfully`);
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+}
+
+export const changeUserRole = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "");
+        }
+        const { id, role } = req.body;
+        const [isUserExist] = await checkUserIdQuery([id]);;
+
+        if (isUserExist.length === 0) {
+            return notFoundResponse(res, [], 'User not found');
+        }
+
+        if(role.toLowerCase() !== 'admin' && role.toLowerCase() !== 'user'){
+            return errorResponse(res, "", "This Role doesn't exists");
+        }
+
+        const data = await updateUserRoleQuery([role, id])
+
+        if(data[0].affectedRows === 0){
+            return errorResponse(res, [], "Data Not updated")
+        }
+
+        return successResponse(res, data, `User role changed successfully`);
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }

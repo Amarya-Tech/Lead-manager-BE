@@ -6,6 +6,7 @@ import { config } from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import { setupRoutes } from './routes.js';
+import { errorHandler } from './middlewares/errorMiddleware.js';
 config();
 
 
@@ -27,6 +28,7 @@ app.use(cors(corsOptions));
 
 // Disable the X-Powered-By header
 app.disable('x-powered-by');
+app.use(errorHandler);
 
 setupRoutes(app) 
 // Start the server
