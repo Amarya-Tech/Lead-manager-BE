@@ -83,3 +83,75 @@ export const archiveLeadQuery = (array) => {
         throw error;
     }
 }
+
+export const fetchLeadTableListQuery = () => {
+    try{
+        let query = `SELECT id, company_name, 
+        product, 
+        industry_type, 
+        status, 
+        DATE_FORMAT(created_at, '%Y-%m-%d') AS created_date
+        FROM leads WHERE is_archived = FALSE`
+        return pool.query(query);
+    } catch (error) {
+        console.error("Error executing fetchLeadTableListQuery:", error);
+        throw error;
+    }
+}
+
+export const fetchLeadDetailQuery = (array) => {
+    try{
+        const query = `SELECT 
+                    l.id, 
+                    l.company_name, 
+                    l.product, 
+                    l.industry_type, 
+                    l.export_value, 
+                    l.insured_amount, 
+                    l.status, 
+                    DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                    COALESCE(office_data.office_details, JSON_ARRAY()) AS office_details,
+                    COALESCE(contact_data.contact_details, JSON_ARRAY()) AS contact_details
+                FROM leads AS l
+
+                LEFT JOIN (
+                    SELECT 
+                        lead_id,
+                        JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                'office_id', id,
+                                'address', address,
+                                'city', city,
+                                'country', country
+                            )
+                        ) AS office_details
+                    FROM lead_office
+                    GROUP BY lead_id
+                ) AS office_data ON office_data.lead_id = l.id
+
+                LEFT JOIN (
+                    SELECT 
+                        lead_id,
+                        JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                'contact_id', id,
+                                'name', name,
+                                'phone', phone,
+                                'alt_phone', alt_phone,
+                                'email', email
+                            )
+                        ) AS contact_details
+                    FROM lead_contact
+                    GROUP BY lead_id
+                ) AS contact_data ON contact_data.lead_id = l.id
+
+                WHERE l.is_archived = FALSE 
+                AND l.id = ?;
+
+                `
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing fetchLeadDetailQuery:", error);
+        throw error;
+    }
+}

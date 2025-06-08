@@ -49,7 +49,7 @@ export const addLeadOfcVal = [
     body('city').notEmpty().withMessage('City cannot be empty.').isString().withMessage("City must be a string."),
     body('district').notEmpty().withMessage('District cannot be empty.').isString().withMessage("District must be a string."),
     body('country').notEmpty().withMessage('Country cannot be empty.').isString().withMessage("Country must be a string."),
-    body('postal code').notEmpty().withMessage('Postal Code cannot be empty.')
+    body('postal_code').notEmpty().withMessage('Postal Code cannot be empty.').isInt().withMessage('Postal code should be an integer')
 ]
 
 export const addLeadContactVal = [

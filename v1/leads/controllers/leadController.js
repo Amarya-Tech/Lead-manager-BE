@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadTableListQuery, updateLeadQuery } from "../model/leadQuery.js";
 
 dotenv.config();
 
@@ -31,7 +31,7 @@ export const createLead = async (req, res, next) => {
             user_id
         ]);
 
-        return successResponse(res, lead_data, 'Lead Created Successfully');
+        return successResponse(res, {"lead_id": id}, 'Lead Created Successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }
@@ -183,6 +183,39 @@ export const archiveLead = async (req, res, next) => {
         const [data] = await archiveLeadQuery([ lead_id ]);
 
         return successResponse(res, data, 'Lead archived Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchLeadTableDetails = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+
+       
+        const [data] = await fetchLeadTableListQuery();
+
+        return successResponse(res, data, 'Lead table data fetched Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchLeadDetails = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        const id = req.params.lead_id;
+        const [data] = await fetchLeadDetailQuery([id]);
+
+        return successResponse(res, data, 'Lead data fetched Successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }

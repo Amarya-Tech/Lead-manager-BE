@@ -22,7 +22,7 @@ export const userRegistration = async (req, res, next) => {
         email = email.toLowerCase();
         const [existingUser] = await checkUserEmailQuery([email]);
          if (existingUser.length) {
-            return successResponse(res, '', 'User with this email already exists.');
+            return errorResponse(res, '', 'User with this email already exists.');
         }
 
         const password_hash = await bcrypt.hash(password.toString(), 12);
@@ -49,6 +49,8 @@ export const userLogin = async (req, res, next) => {
             return errorResponse(res, errors.array(), "");
         }
 
+        const isProduction = process.env.NODE_ENV === 'production';
+
         const { email, password } = req.body;
         const [isUserExist] = await checkUserEmailQuery([email]);;
 
@@ -74,15 +76,16 @@ export const userLogin = async (req, res, next) => {
         await updateTokenQuery([token, user_id]);
         // Set JWT and user_id as HttpOnly and SameSite=Strict cookies
         res.cookie('jwt', token, {
-            httpOnly: true,
-            sameSite: 'None',
-            secure: true, // Only use Secure in production
+            httpOnly: false,
+            sameSite: isProduction ? 'None' : 'Lax', // 'None' for prod HTTPS, 'Lax' for dev
+            secure: isProduction,                    // true in prod HTTPS, false in dev
             maxAge: parseInt(process.env.JWT_EXPIRATION_TIME) * 1000
         });
+
         res.cookie('user_id', isUserExist[0].id, {
-            httpOnly: true,
-            sameSite: 'None',
-            secure: true,
+            httpOnly: false,
+            sameSite: isProduction ? 'None' : 'Lax',
+            secure: isProduction,
             path: '/',
             maxAge: parseInt(process.env.JWT_EXPIRATION_TIME) * 1000
         });

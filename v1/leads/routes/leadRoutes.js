@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import multer from 'multer';
 import { addLeadContactVal, addLeadOfcVal, createLeadVal, updateLeadContactVal, updateLeadOfcVal, updateLeadVal } from '../../../utils/validation.js';
-import { addLeadContact, addLeadOffices, archiveLead, createLead, updateLead, updateLeadContact, updateLeadOffices } from '../controllers/leadController.js';
+import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchLeadDetails, fetchLeadTableDetails, updateLead, updateLeadContact, updateLeadOffices } from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 const app = express()
@@ -16,7 +16,9 @@ app.put('/update-lead/:lead_id', authenticateUserAdminSession, updateLeadVal, up
 app.put('/update-lead-office/:lead_id/:office_id', authenticateUserAdminSession, updateLeadOfcVal, updateLeadOffices);
 app.post('/add-lead-contact/:id', authenticateUserAdminSession, addLeadContactVal, addLeadContact);
 app.put('/update-lead-contact/:lead_id/:contact_id', authenticateUserAdminSession, updateLeadContactVal, updateLeadContact);
-app.delete('/archive-lead/:lead_id', authenticateAdminSession, updateLeadVal, archiveLead);
+app.delete('/archive-lead/:lead_id', authenticateAdminSession, updateLeadVal, archiveLead);fetchLeadTableDetails
+app.get('/fetch-lead-table-detail', authenticateUserAdminSession,  fetchLeadTableDetails);
+app.get('/get-lead-detail/:lead_id', authenticateUserAdminSession,  fetchLeadDetails);
 
 
 app.use("/", router);
