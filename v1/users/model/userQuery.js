@@ -39,7 +39,7 @@ export const updateTokenQuery = (array) => {
 
 export const checkUserIdQuery = (array)=>{
     try {
-        let query = `SELECT * FROM users WHERE id = ? AND is_active = TRUE`
+        let query = `SELECT id, first_name, last_name, email, phone, role, is_active, password_hash, created_at, updated_at FROM users WHERE id = ?`
         return pool.query(query, array);
     } catch (error) {
         console.error("Error executing checkUserEmailQuery:", error);
@@ -63,6 +63,16 @@ export const updateUserRoleQuery = (array) => {
         return pool.query(query, array);
     } catch (error) {
         console.error("Error executing updateUserRoleQuery:", error);
+        throw error;
+    }
+}
+
+export const getAllUsersQuery = (array)=>{
+    try {
+        let query = `SELECT id, first_name, last_name, email, phone, role, is_active FROM users WHERE is_active = TRUE`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing getAllUsersQuery:", error);
         throw error;
     }
 }

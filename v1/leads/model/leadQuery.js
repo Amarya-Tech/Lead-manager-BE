@@ -99,6 +99,28 @@ export const fetchLeadTableListQuery = () => {
     }
 }
 
+export const fetchLeadTableListUserQuery = (array) => {
+    try{
+        let query = `SELECT l.id, 
+                l.company_name, 
+                l.product, 
+                l.industry_type, 
+                l.status, 
+                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date
+            FROM leads l
+            WHERE l.is_archived = FALSE
+            AND l.id IN (
+                SELECT lc.lead_id
+                FROM lead_communication lc
+                WHERE lc.assignee_id = ?
+            )`          
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing fetchLeadTableListQuery:", error);
+        throw error;
+    }
+}
+
 export const fetchLeadDetailQuery = (array) => {
     try{
         const query = `SELECT 

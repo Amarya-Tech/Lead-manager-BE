@@ -5,7 +5,7 @@ import dotenv from "dotenv"
 import crypto from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
-import { checkUserEmailQuery, checkUserIdQuery, updateTokenQuery, updateUserActiveStatusQuery, updateUserRoleQuery, userRegistrationQuery } from "../model/userQuery.js";
+import { checkUserEmailQuery, checkUserIdQuery, getAllUsersQuery, updateTokenQuery, updateUserActiveStatusQuery, updateUserRoleQuery, userRegistrationQuery } from "../model/userQuery.js";
 
 dotenv.config();
 
@@ -176,6 +176,44 @@ export const changeUserRole = async (req, res, next) => {
         }
 
         return successResponse(res, data, `User role changed successfully`);
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+}
+
+export const fetchUserDetail = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "");
+        }
+        const user_id = req.params.id;
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+
+        if (isUserExist.length === 0) {
+            return notFoundResponse(res, [], 'User not found');
+        }
+
+        return successResponse(res, isUserExist, `User role changed successfully`);
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+}
+
+export const fetchUsersList = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "");
+        }
+      
+        const [user_data] = await getAllUsersQuery();
+
+        if (user_data.length === 0) {
+            return notFoundResponse(res, [], 'List not found');
+        }
+
+        return successResponse(res, user_data, `List fetched successfully`);
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }

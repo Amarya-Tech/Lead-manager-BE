@@ -3,7 +3,8 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadTableListQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { checkUserIdQuery } from "../../users/model/userQuery.js";
 
 dotenv.config();
 
@@ -195,9 +196,16 @@ export const fetchLeadTableDetails = async (req, res, next) => {
         if (!errors.isEmpty()) {
             return errorResponse(res, errors.array(), "")
         }
+        let data;       
+        const user_id = req.params.id
+        const [isUserExist] = await checkUserIdQuery([user_id]);
 
-       
-        const [data] = await fetchLeadTableListQuery();
+        if(isUserExist[0].role === 'admin'){
+              [data] = await fetchLeadTableListQuery();
+        }else{
+            [data] = await fetchLeadTableListUserQuery([user_id]);
+        }
+
 
         return successResponse(res, data, 'Lead table data fetched Successfully');
     } catch (error) {
