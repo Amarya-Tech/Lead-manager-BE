@@ -144,7 +144,9 @@ export const fetchLeadDetailQuery = (array) => {
                                 'office_id', id,
                                 'address', address,
                                 'city', city,
-                                'country', country
+                                'district', district,
+                                'country', country,
+                                'postal_code', postal_code
                             )
                         ) AS office_details
                     FROM lead_office
@@ -174,6 +176,38 @@ export const fetchLeadDetailQuery = (array) => {
         return pool.query(query, array);
     } catch (error) {
         console.error("Error executing fetchLeadDetailQuery:", error);
+        throw error;
+    }
+}
+
+export const fetchLeadListWithLastContactedQuery = (array) => {
+    try{
+        let query = `SELECT 
+                    l.id AS lead_id,
+                    l.company_name,
+                    l.product,
+                    l.industry_type,
+                    l.status,
+                    lcom.id AS lead_communication_id,
+                    logs.comment AS latest_comment,
+                    DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date
+                FROM leads AS l
+                INNER JOIN lead_communication AS lcom 
+                    ON lcom.lead_id = l.id AND lcom.assignee_id = ?
+                LEFT JOIN lead_communication_logs AS logs 
+                    ON logs.id = (
+                        SELECT logs2.id 
+                        FROM lead_communication_logs AS logs2
+                        WHERE logs2.lead_communication_id = lcom.id
+                        ORDER BY logs2.created_at DESC
+                        LIMIT 1
+                    )
+                WHERE l.is_archived = FALSE
+                ORDER BY l.created_at DESC;
+`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing fetchLeadTableListQuery:", error);
         throw error;
     }
 }

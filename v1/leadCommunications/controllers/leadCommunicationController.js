@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { addAssigneeToLeadQuery, addCommentToLeadQuery, isAssigneeExistQuery, isLeadExistQuery } from "../model/leadCommunicationQuery.js";
+import { addAssigneeToLeadQuery, addCommentToLeadQuery, fetchLeadCommunicationDataQuery, fetchLogsQuery, isAssigneeExistQuery, isLeadExistQuery } from "../model/leadCommunicationQuery.js";
 
 
 dotenv.config();
@@ -67,6 +67,30 @@ export const addComments = async (req, res, next) => {
         ]);
 
         return successResponse(res, lead_data, 'Comments added Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const getLeadLogDetails = async (req, res, next) =>{
+try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        
+        let lead_id = req.params.lead_id;
+        let user_id = req.params.id;
+        
+        const [lead_communication_data] = await fetchLeadCommunicationDataQuery([ lead_id, user_id])
+
+        if(lead_communication_data.length == 0){
+             return notFoundResponse(res, [], 'User has not established communication with that lead');
+        }
+        const [logs_data] = await fetchLogsQuery([lead_communication_data[0].id])
+        
+        return successResponse(res, logs_data, 'Comments fetched Successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }

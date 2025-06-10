@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserIdQuery } from "../../users/model/userQuery.js";
 
 dotenv.config();
@@ -224,6 +224,25 @@ export const fetchLeadDetails = async (req, res, next) => {
         const [data] = await fetchLeadDetailQuery([id]);
 
         return successResponse(res, data, 'Lead data fetched Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchLeadLogDetails = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        let data;       
+        const user_id = req.params.id
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+        
+        [data] = await fetchLeadListWithLastContactedQuery([user_id]);
+
+        return successResponse(res, data, 'Lead table data fetched Successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }
