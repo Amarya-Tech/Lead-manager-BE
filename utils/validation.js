@@ -12,7 +12,11 @@ export const userRegVal = [
     body('last_name').notEmpty().withMessage('Last name cannot be empty.').isString().withMessage("Last name must be a string."),
     body('email').isEmail().withMessage('Invalid email input.').notEmpty().withMessage('Email cannot be empty.'),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long').notEmpty().withMessage('Password cannot be empty.').custom(passwordValidation),
-    body('phone').isInt().withMessage('Phone number should be an integer').isLength({ min: 10, max: 10 }).withMessage('Phone number must be of 10 digits.'),
+    body('phone')
+        .optional()
+        .isLength({ min: 10, max: 10 }).withMessage('Phone number must be 10 digits.')
+        .matches(/^\d+$/).withMessage('Phone number must contain only digits.'),
+    body('role').notEmpty().withMessage('Role cannot be empty.')
 ]
 
 export const userLogVal = [
