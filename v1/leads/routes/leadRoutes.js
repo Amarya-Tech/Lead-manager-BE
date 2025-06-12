@@ -16,7 +16,7 @@ app.put('/update-lead/:lead_id', authenticateUserAdminSession, updateLeadVal, up
 app.put('/update-lead-office/:lead_id/:office_id', authenticateUserAdminSession, updateLeadOfcVal, updateLeadOffices);
 app.post('/add-lead-contact/:id', authenticateUserAdminSession, addLeadContactVal, addLeadContact);
 app.put('/update-lead-contact/:lead_id/:contact_id', authenticateUserAdminSession, updateLeadContactVal, updateLeadContact);
-app.delete('/archive-lead/:lead_id', authenticateAdminSession, updateLeadVal, archiveLead);fetchLeadTableDetails
+app.delete('/archive-lead/:lead_id', authenticateAdminSession, updateLeadVal, archiveLead);
 app.get('/fetch-lead-table-detail/:id', authenticateUserAdminSession,  fetchLeadTableDetails);
 app.get('/get-lead-detail/:lead_id', authenticateUserAdminSession,  fetchLeadDetails);
 app.get('/fetch-lead-log-list/:id', authenticateUserAdminSession,  fetchLeadLogDetails);

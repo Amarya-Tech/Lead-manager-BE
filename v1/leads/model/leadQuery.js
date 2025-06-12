@@ -180,34 +180,44 @@ export const fetchLeadDetailQuery = (array) => {
     }
 }
 
-export const fetchLeadListWithLastContactedQuery = (array) => {
-    try{
-        let query = `SELECT 
-                    l.id AS lead_id,
-                    l.company_name,
-                    l.product,
-                    l.industry_type,
-                    l.status,
-                    lcom.id AS lead_communication_id,
-                    logs.comment AS latest_comment,
-                    DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date
-                FROM leads AS l
-                INNER JOIN lead_communication AS lcom 
-                    ON lcom.lead_id = l.id AND lcom.assignee_id = ?
-                LEFT JOIN lead_communication_logs AS logs 
-                    ON logs.id = (
-                        SELECT logs2.id 
-                        FROM lead_communication_logs AS logs2
-                        WHERE logs2.lead_communication_id = lcom.id
-                        ORDER BY logs2.created_at DESC
-                        LIMIT 1
-                    )
-                WHERE l.is_archived = FALSE
-                ORDER BY l.created_at DESC;
-`
-        return pool.query(query, array);
+export const fetchLeadListWithLastContactedQuery = (is_admin, user_id) => {
+    try {
+        let query = `
+            SELECT 
+                l.id AS lead_id,
+                l.company_name,
+                l.product,
+                l.industry_type,
+                l.status,
+                lcom.id AS lead_communication_id,
+                logs.comment AS latest_comment,
+                DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date
+            FROM leads AS l
+            LEFT JOIN lead_communication AS lcom 
+                ON lcom.lead_id = l.id
+            LEFT JOIN lead_communication_logs AS logs 
+                ON logs.id = (
+                    SELECT logs2.id 
+                    FROM lead_communication_logs AS logs2
+                    WHERE logs2.lead_communication_id = lcom.id
+                    ORDER BY logs2.created_at DESC
+                    LIMIT 1
+                )
+            WHERE l.is_archived = FALSE
+        `;
+
+        const queryParams = [];
+
+        if (!is_admin) {
+            query += ` AND lcom.assignee_id = ?`;
+            queryParams.push(user_id);
+        }
+
+        query += ` ORDER BY l.created_at DESC`;
+
+        return pool.query(query, queryParams);
     } catch (error) {
-        console.error("Error executing fetchLeadTableListQuery:", error);
+        console.error("Error executing fetchLeadListWithLastContactedQuery:", error);
         throw error;
     }
-}
+};

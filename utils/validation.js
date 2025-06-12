@@ -59,9 +59,10 @@ export const addLeadOfcVal = [
 export const addLeadContactVal = [
     body('lead_id').notEmpty().withMessage('Lead Id cannot be empty.').isUUID().withMessage('Lead Id must be a valid UUID.'),
     body('name').notEmpty().withMessage('Name cannot be empty.').isString().withMessage("Name must be a string."),
-    body('phone').isInt().withMessage('Phone number should be an integer').isLength({ min: 10, max: 10 }).withMessage('Phone number must be of 10 digits.'),
+    body('phone').optional().isInt().withMessage('Phone number should be an integer').isLength({ min: 10, max: 10 }).withMessage('Phone number must be of 10 digits.'),
     body('alt_phone').optional().isInt().withMessage('Phone number should be an integer').isLength({ min: 10, max: 10 }).withMessage('Phone number must be of 10 digits.'),
-    body('email').isEmail().withMessage('Invalid email input.').notEmpty().withMessage('Email cannot be empty.')
+    body('email').optional({ checkFalsy: true })
+    .isEmail().withMessage('Invalid email input.'),
 ]
 
 export const updateLeadVal = [
@@ -86,6 +87,6 @@ export const addAssigneeVal = [
 
 export const addCommnentVal = [
     param('id').notEmpty().withMessage('User id cannot be empty.'),
-    body('lead_communication_id').notEmpty().withMessage('Lead Id cannot be empty.').isUUID().withMessage('Lead Id must be a valid UUID.'),
+    param('lead_id').notEmpty().withMessage('Lead id cannot be empty.'),
     body('comment').notEmpty().withMessage('Comment cannot be empty.').isString().withMessage("Comment must be a string.")
 ]

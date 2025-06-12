@@ -98,7 +98,7 @@ export const authenticateUserSession = async (req, res, next) => {
               });
             return res.status(440).json({
                 status: 'failure',
-                message: 'Invalid token'
+                message: 'Invalid authentication. You are not allowed to access this api.'
             });
         }
 

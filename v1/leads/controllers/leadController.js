@@ -237,10 +237,15 @@ export const fetchLeadLogDetails = async (req, res, next) => {
             return errorResponse(res, errors.array(), "")
         }
         let data;       
+        let is_admin = false;
         const user_id = req.params.id
         const [isUserExist] = await checkUserIdQuery([user_id]);
+
+        if(isUserExist[0].role == "admin"){
+            is_admin = true
+        }
         
-        [data] = await fetchLeadListWithLastContactedQuery([user_id]);
+        [data] = await fetchLeadListWithLastContactedQuery(is_admin, user_id);
 
         return successResponse(res, data, 'Lead table data fetched Successfully');
     } catch (error) {

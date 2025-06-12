@@ -93,7 +93,7 @@ export const authenticateAdminSession = async (req, res, next) => {
                 return res.status(440).json({
                     statusCode: 440,
                     status: 'failure',
-                    message: 'Invalid authentication. You are not allowed to access this api'
+                    message: 'Invalid authentication. You are not allowed to access this api.'
                 });
             }       
     } catch (error) {
