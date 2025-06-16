@@ -1,4 +1,5 @@
 import pool from "../../../config/db.js"
+import { v4 as uuidv4 } from 'uuid';
 
 // export const checkUserEmailQuery = (array)=>{
 //     try {
@@ -222,4 +223,33 @@ export const fetchLeadListWithLastContactedQuery = (is_admin, user_id) => {
         console.error("Error executing fetchLeadListWithLastContactedQuery:", error);
         throw error;
     }
+};
+
+export const insertLeadIndustries = (industryNamesArray) => {
+  try {
+    const query = `
+      INSERT INTO lead_industry (id, industry_name)
+      VALUES ?
+    `;
+
+    const formattedValues = industryNamesArray.map(name => [uuidv4(), name]);
+
+    return pool.query(query, [formattedValues]);
+  } catch (error) {
+    console.error("Error executing insertLeadIndustries:", error);
+    throw error;
+  }
+};
+
+export const fetchLeadIndustryQuery = () => {
+  try {
+    const query = `
+     SELECT id, industry_name FROM lead_industry 
+     ORDER BY industry_name ASC
+    `;
+    return pool.query(query, );
+  } catch (error) {
+    console.error("Error executing fetchLeadIndustryQuery:", error);
+    throw error;
+  }
 };

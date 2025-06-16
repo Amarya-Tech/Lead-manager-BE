@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import multer from 'multer';
 import { addLeadContactVal, addLeadOfcVal, createLeadVal, updateLeadContactVal, updateLeadOfcVal, updateLeadVal } from '../../../utils/validation.js';
-import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchLeadDetails, fetchLeadLogDetails, fetchLeadTableDetails, updateLead, updateLeadContact, updateLeadOffices } from '../controllers/leadController.js';
+import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryType, fetchLeadDetails, fetchLeadLogDetails, fetchLeadTableDetails, updateLead, updateLeadContact, updateLeadOffices } from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 const app = express()
@@ -20,6 +20,7 @@ app.delete('/archive-lead/:lead_id', authenticateAdminSession, updateLeadVal, ar
 app.get('/fetch-lead-table-detail/:id', authenticateUserAdminSession,  fetchLeadTableDetails);
 app.get('/get-lead-detail/:lead_id', authenticateUserAdminSession,  fetchLeadDetails);
 app.get('/fetch-lead-log-list/:id', authenticateUserAdminSession,  fetchLeadLogDetails);
+app.get('/fetch-industry-type', authenticateUserAdminSession,  fetchIndustryType);
 
 
 app.use("/", router);

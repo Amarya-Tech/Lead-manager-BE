@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertLeadIndustries, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserIdQuery } from "../../users/model/userQuery.js";
 
 dotenv.config();
@@ -249,6 +249,41 @@ export const fetchLeadLogDetails = async (req, res, next) => {
         [data] = await fetchLeadListWithLastContactedQuery(is_admin, user_id);
 
         return successResponse(res, data, 'Lead table data fetched Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+// export const addIndustryTypeDetails = async (req, res, next) => {
+//     try {
+//         const errors = validationResult(req);
+
+//         if (!errors.isEmpty()) {
+//             return errorResponse(res, errors.array(), "")
+//         }
+//         const data =  req.body.data
+//         console.log(data)
+        
+        
+//        let  [data1] = await insertLeadIndustries(data);
+
+//         return successResponse(res, data1, 'Industry inserted successfully');
+//     } catch (error) {
+//         return internalServerErrorResponse(res, error);
+//     }
+// };
+
+export const fetchIndustryType = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        
+       let  [data1] = await fetchLeadIndustryQuery();
+
+        return successResponse(res, data1, 'Industry fetched successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }
