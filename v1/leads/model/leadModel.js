@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS leads (
     export_value int,
     insured_amount int,
     created_by char(36) NOT NULL,
-    status ENUM('new', 'contacted', 'call back', 'no pickup', 'complete', 'closed') DEFAULT 'new',
+    status ENUM('lead', 'prospect', 'active prospect', 'customer', 'expired prospect', 'expired lead') DEFAULT 'lead',
     is_archived boolean DEFAULT FALSE,
     created_at datetime DEFAULT CURRENT_TIMESTAMP,
     updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -62,11 +62,12 @@ export const createLeadContactQuery = (array)=> {
             id,
             lead_id,
             name,
+            designation,
             phone,
             alt_phone,
             email,
             created_by
-        ) VALUES (?,?,?,?,?,?,?)`
+        ) VALUES (?,?,?,?,?,?,?,?)`
         return pool.query(query, array);
     } catch (error) {
         console.error("Error executing createLeadContactQuery:", error);
@@ -160,6 +161,7 @@ export const fetchLeadDetailQuery = (array) => {
                             JSON_OBJECT(
                                 'contact_id', id,
                                 'name', name,
+                                'designation', designation,
                                 'phone', phone,
                                 'alt_phone', alt_phone,
                                 'email', email

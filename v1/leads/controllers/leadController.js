@@ -20,7 +20,7 @@ export const createLead = async (req, res, next) => {
         let { company_name, product, industry_type, export_value, insured_amount} = req.body;
         let user_id = req.params.id;
         company_name = toTitleCase(company_name);
-        product = toTitleCase(product);
+        product = product ? toTitleCase(product) : product;
 
         const [lead_data] = await createLeadQuery([
             id,
@@ -126,7 +126,7 @@ export const addLeadContact = async (req, res, next) => {
         }
         let id = uuidv4();
         
-        let { lead_id, name, phone, alt_phone, email} = req.body;
+        let { lead_id, name, designation, phone, alt_phone, email} = req.body;
         name = toTitleCase(name);
         let user_id = req.params.id;
 
@@ -134,6 +134,7 @@ export const addLeadContact = async (req, res, next) => {
             id,
             lead_id,
             name,
+            designation,
             phone,
             alt_phone ?? null,
             email || '',
