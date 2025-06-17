@@ -17,7 +17,7 @@ app.put('/active-status', authenticateUserAdminSession, setUserStatusVal, setUse
 app.put('/update-user-role', authenticateAdminSession, setUserRoleVal, changeUserRole);
 app.put('/update-user/:id', authenticateUserAdminSession, updateUserData);
 app.get('/fetch-user-detail/:id', authenticateUserAdminSession, logOutVal, fetchUserDetail);
-app.get('/fetch-active-user-list', authenticateAdminSession, fetchActiveUsersList);
+app.get('/fetch-active-user-list', authenticateUserAdminSession, fetchActiveUsersList);
 app.get('/fetch-all-user-list', authenticateAdminSession, fetchUsersList);
 
 

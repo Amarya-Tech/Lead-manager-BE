@@ -132,7 +132,10 @@ export const fetchLeadDetailQuery = (array) => {
                     l.industry_type, 
                     l.export_value, 
                     l.insured_amount, 
-                    l.status, 
+                    l.status,
+                    lcom.assignee_id AS assignee_id, 
+                    CONCAT(u.first_name, ' ', u.last_name) AS assigned_person, 
+                    lcom.description AS assigned_description, 
                     DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
                     COALESCE(office_data.office_details, JSON_ARRAY()) AS office_details,
                     COALESCE(contact_data.contact_details, JSON_ARRAY()) AS contact_details
@@ -172,6 +175,9 @@ export const fetchLeadDetailQuery = (array) => {
                     GROUP BY lead_id
                 ) AS contact_data ON contact_data.lead_id = l.id
 
+                JOIN lead_communication AS lcom ON lcom.lead_id = l.id
+                INNER JOIN users AS u ON u.id = lcom.assignee_id
+
                 WHERE l.is_archived = FALSE 
                 AND l.id = ?;
 
@@ -185,38 +191,38 @@ export const fetchLeadDetailQuery = (array) => {
 
 export const fetchLeadListWithLastContactedQuery = (is_admin, user_id) => {
     try {
-        let query = `
-            SELECT 
-                l.id AS lead_id,
-                l.company_name,
-                l.product,
-                l.industry_type,
-                l.status,
-                lcom.id AS lead_communication_id,
-                logs.comment AS latest_comment,
-                DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date
-            FROM leads AS l
-            LEFT JOIN lead_communication AS lcom 
-                ON lcom.lead_id = l.id
-            LEFT JOIN lead_communication_logs AS logs 
-                ON logs.id = (
-                    SELECT logs2.id 
-                    FROM lead_communication_logs AS logs2
-                    WHERE logs2.lead_communication_id = lcom.id
-                    ORDER BY logs2.created_at DESC
-                    LIMIT 1
-                )
-            WHERE l.is_archived = FALSE
-        `;
-
         const queryParams = [];
+
+        let query = `
+            SELECT *
+            FROM (
+                SELECT 
+                    l.id AS lead_id,
+                    l.company_name,
+                    l.product,
+                    l.industry_type,
+                    l.status,
+                    logs.comment AS latest_comment,
+                    DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date,
+                    ROW_NUMBER() OVER (PARTITION BY l.id ORDER BY logs.created_at DESC) AS rn
+                FROM leads AS l
+                LEFT JOIN lead_communication AS lcom 
+                    ON lcom.lead_id = l.id
+                LEFT JOIN lead_communication_logs AS logs 
+                    ON logs.lead_communication_id = lcom.id
+                WHERE l.is_archived = FALSE
+        `;
 
         if (!is_admin) {
             query += ` AND lcom.assignee_id = ?`;
             queryParams.push(user_id);
         }
 
-        query += ` ORDER BY l.created_at DESC`;
+        query += `
+            ) AS ranked
+            WHERE rn = 1
+            ORDER BY latest_comment_date DESC
+        `;
 
         return pool.query(query, queryParams);
     } catch (error) {
