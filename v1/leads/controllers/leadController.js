@@ -3,7 +3,8 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertLeadIndustries, updateLeadQuery } from "../model/leadQuery.js";
+import { checkUserIdQuery } from "../../users/model/userQuery.js";
 
 dotenv.config();
 
@@ -19,7 +20,7 @@ export const createLead = async (req, res, next) => {
         let { company_name, product, industry_type, export_value, insured_amount} = req.body;
         let user_id = req.params.id;
         company_name = toTitleCase(company_name);
-        product = toTitleCase(product);
+        product = product ? toTitleCase(product) : product;
 
         const [lead_data] = await createLeadQuery([
             id,
@@ -31,7 +32,7 @@ export const createLead = async (req, res, next) => {
             user_id
         ]);
 
-        return successResponse(res, lead_data, 'Lead Created Successfully');
+        return successResponse(res, {"lead_id": id}, 'Lead Created Successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }
@@ -125,7 +126,7 @@ export const addLeadContact = async (req, res, next) => {
         }
         let id = uuidv4();
         
-        let { lead_id, name, phone, alt_phone, email} = req.body;
+        let { lead_id, name, designation, phone, alt_phone, email} = req.body;
         name = toTitleCase(name);
         let user_id = req.params.id;
 
@@ -133,6 +134,7 @@ export const addLeadContact = async (req, res, next) => {
             id,
             lead_id,
             name,
+            designation,
             phone,
             alt_phone ?? null,
             email || '',
@@ -183,6 +185,105 @@ export const archiveLead = async (req, res, next) => {
         const [data] = await archiveLeadQuery([ lead_id ]);
 
         return successResponse(res, data, 'Lead archived Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchLeadTableDetails = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        let data;       
+        const user_id = req.params.id
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+
+        if(isUserExist[0].role === 'admin'){
+              [data] = await fetchLeadTableListQuery();
+        }else{
+            [data] = await fetchLeadTableListUserQuery([user_id]);
+        }
+
+
+        return successResponse(res, data, 'Lead table data fetched Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchLeadDetails = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        const id = req.params.lead_id;
+        const [data] = await fetchLeadDetailQuery([id]);
+
+        return successResponse(res, data, 'Lead data fetched Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchLeadLogDetails = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        let data;       
+        let is_admin = false;
+        const user_id = req.params.id
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+
+        if(isUserExist[0].role == "admin"){
+            is_admin = true
+        }
+        
+        [data] = await fetchLeadListWithLastContactedQuery(is_admin, user_id);
+
+        return successResponse(res, data, 'Lead table data fetched Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+// export const addIndustryTypeDetails = async (req, res, next) => {
+//     try {
+//         const errors = validationResult(req);
+
+//         if (!errors.isEmpty()) {
+//             return errorResponse(res, errors.array(), "")
+//         }
+//         const data =  req.body.data
+//         console.log(data)
+        
+        
+//        let  [data1] = await insertLeadIndustries(data);
+
+//         return successResponse(res, data1, 'Industry inserted successfully');
+//     } catch (error) {
+//         return internalServerErrorResponse(res, error);
+//     }
+// };
+
+export const fetchIndustryType = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        
+       let  [data1] = await fetchLeadIndustryQuery();
+
+        return successResponse(res, data1, 'Industry fetched successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }

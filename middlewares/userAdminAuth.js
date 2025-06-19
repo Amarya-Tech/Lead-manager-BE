@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken"
 import { getTokenSessionById } from "../utils/helper.js";
 dotenv.config();
 
-export const authenticateAdminSession = async (req, res, next) => {
+export const authenticateUserAdminSession  = async (req, res, next) => {
 
     const token = req.cookies.jwt
     const encrypted_user_id = req.headers['x-encryption-key'];
@@ -52,9 +52,9 @@ export const authenticateAdminSession = async (req, res, next) => {
             });
         }
             //ACCESS DETAILS
-            if (decoded.hasOwnProperty('user_id') && decoded.role === "admin") {
+            if (decoded.hasOwnProperty('user_id') && (decoded.role === "user" || decoded.role === "admin")) {
                 [accessDetails] = await getTokenSessionById(decoded.user_id);
-
+                
                 if (accessDetails && String(token) === String(accessDetails[0].jwt_token)) {
                     req.decoded = decoded;
                     next();
@@ -71,7 +71,7 @@ export const authenticateAdminSession = async (req, res, next) => {
                         secure: true,
                         path: '/',
                       });
-                    return res.status(440).json({
+                    return res.send({
                         statusCode: 440,
                         status: 'failure',
                         message: 'Invalid session.'
@@ -90,7 +90,7 @@ export const authenticateAdminSession = async (req, res, next) => {
                     secure: true,
                     path: '/',
                   });
-                return res.status(440).json({
+                return res.send({
                     statusCode: 440,
                     status: 'failure',
                     message: 'Invalid authentication. You are not allowed to access this api.'

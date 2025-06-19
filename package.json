@@ -4,7 +4,14 @@
   "description": "lead management system",
   "type": "module",
   "scripts": {
-    "start": "nodemon app.js"
+    "start": "nodemon app.js",
+    "dev": "nodemon app.js",              
+    "serve": "node app.js",                
+    "lint": "eslint .",              
+    "test": "jest",               
+    "test:watch": "jest --watch",          
+    "build": "echo 'No build step defined'",
+    "clean": "rm -rf node_modules && npm install"
   },
   "repository": {
     "type": "git",
@@ -28,6 +35,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.0",
     "mysql2": "^3.14.1",
+    "nodemon": "^3.1.10",
     "uuid": "^11.1.0"
   }
 }

@@ -1,3 +1,5 @@
+import pool from "../config/db.js"
+
 export function toTitleCase(str) {
   return str
     .toLowerCase()
@@ -31,4 +33,9 @@ export const createDynamicUpdateQuery = async(table, condition, req_data)=>{
     }
     });
     return {updateQuery, updateValues};
+}
+
+export const getTokenSessionById = async(id)=>{
+        let query = `SELECT jwt_token FROM users WHERE id = ?`
+        return pool.query(query,[id])
 }
