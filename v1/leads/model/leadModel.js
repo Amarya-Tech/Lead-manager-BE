@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS leads (
     industry_type varchar (255),
     export_value int,
     insured_amount int,
+    suitable_product varchar(255),
     created_by char(36) NOT NULL,
     status ENUM('lead', 'prospect', 'active prospect', 'customer', 'expired prospect', 'expired lead') DEFAULT 'lead',
     is_archived boolean DEFAULT FALSE,
