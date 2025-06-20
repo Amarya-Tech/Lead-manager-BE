@@ -51,7 +51,7 @@ export const addLeadOfcVal = [
     body('lead_id').notEmpty().withMessage('Lead Id cannot be empty.').isUUID().withMessage('Lead Id must be a valid UUID.'),
     body('address').notEmpty().withMessage('Address cannot be empty.').isString().withMessage("Address must be a string."),
     body('city').notEmpty().withMessage('City cannot be empty.').isString().withMessage("City must be a string."),
-    body('district').notEmpty().withMessage('District cannot be empty.').isString().withMessage("District must be a string."),
+    body('state').notEmpty().withMessage('State cannot be empty.').isString().withMessage("State must be a string."),
     body('country').notEmpty().withMessage('Country cannot be empty.').isString().withMessage("Country must be a string."),
     body('postal_code').notEmpty().withMessage('Postal Code cannot be empty.').isInt().withMessage('Postal code should be an integer')
 ]

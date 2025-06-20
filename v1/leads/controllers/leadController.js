@@ -47,10 +47,10 @@ export const addLeadOffices = async (req, res, next) => {
         }
         let id = uuidv4();
         
-        let { lead_id, address, city, district, country, postal_code} = req.body;
+        let { lead_id, address, city, state, country, postal_code} = req.body;
         address = toTitleCase(address);
         city = toTitleCase(city);
-        district = toTitleCase(district);
+        state = toTitleCase(state);
         country = toTitleCase(country);
 
         const [office_data] = await createLeadOfficeQuery([
@@ -58,7 +58,7 @@ export const addLeadOffices = async (req, res, next) => {
             lead_id,
             address,
             city, 
-            district,
+            state,
             country,
             postal_code
         ]);

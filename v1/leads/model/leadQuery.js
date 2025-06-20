@@ -37,7 +37,7 @@ export const createLeadOfficeQuery = (array)=> {
             lead_id,
             address,
             city,
-            district,
+            state,
             country,
             postal_code
         ) VALUES (?,?,?,?,?,?,?)`
@@ -149,7 +149,7 @@ export const fetchLeadDetailQuery = (array) => {
                                 'office_id', id,
                                 'address', address,
                                 'city', city,
-                                'district', district,
+                                'state', state,
                                 'country', country,
                                 'postal_code', postal_code
                             )
@@ -175,8 +175,8 @@ export const fetchLeadDetailQuery = (array) => {
                     GROUP BY lead_id
                 ) AS contact_data ON contact_data.lead_id = l.id
 
-                JOIN lead_communication AS lcom ON lcom.lead_id = l.id
-                INNER JOIN users AS u ON u.id = lcom.assignee_id
+                LEFT JOIN lead_communication AS lcom ON lcom.lead_id = l.id
+                LEFT JOIN users AS u ON u.id = lcom.assignee_id
 
                 WHERE l.is_archived = FALSE 
                 AND l.id = ?;
