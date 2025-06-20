@@ -259,3 +259,31 @@ export const fetchLeadIndustryQuery = () => {
     throw error;
   }
 };
+
+export const insertCompanyDataFromExcelQuery = (data, created_by)=> {
+    try {
+        let query = `INSERT INTO leads (
+            id,
+            company_name,
+            product,
+            industry_type,
+            export_value,
+            insured_amount,
+            created_by
+        ) VALUES ?`
+
+        const values = data.map(item => [
+            uuidv4(),                  
+            item.company_name,
+            item.product,
+            item.industry_type,
+            item.export_value,
+            item.insured_amount,
+            created_by                  
+        ]);
+        return pool.query(query, [values]);
+    } catch (error) {
+        console.error("Error executing insertCompanyDataFromExcelQuery:", error);
+        throw error;
+    }
+}

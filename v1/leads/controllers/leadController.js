@@ -3,8 +3,9 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertLeadIndustries, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertCompanyDataFromExcelQuery, insertLeadIndustries, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserIdQuery } from "../../users/model/userQuery.js";
+import importExcel from "../../../utils/importExcel.js";
 
 dotenv.config();
 
@@ -284,6 +285,31 @@ export const fetchIndustryType = async (req, res, next) => {
        let  [data1] = await fetchLeadIndustryQuery();
 
         return successResponse(res, data1, 'Industry fetched successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const insertDataFromExcel = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        const user_id = req.params.id;
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+
+        if(isUserExist.length == 0 ){
+            return notFoundResponse(res, [], "User not found")
+        }
+        
+        let excelData = await importExcel()
+        console.log(excelData)
+
+        let [data1] = await insertCompanyDataFromExcelQuery(excelData, user_id)
+
+        return successResponse(res, data1, 'Industry added successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }
