@@ -133,6 +133,7 @@ export const fetchLeadDetailQuery = (array) => {
                     l.export_value, 
                     l.insured_amount, 
                     l.status,
+                    l.suitable_product,
                     lcom.assignee_id AS assignee_id, 
                     CONCAT(u.first_name, ' ', u.last_name) AS assigned_person, 
                     lcom.description AS assigned_description, 
@@ -197,7 +198,7 @@ export const fetchLeadListWithLastContactedQuery = (is_admin, user_id) => {
             SELECT *
             FROM (
                 SELECT 
-                    l.id AS lead_id,
+                    l.id AS id,
                     l.company_name,
                     l.product,
                     l.industry_type,
@@ -253,9 +254,73 @@ export const fetchLeadIndustryQuery = () => {
      SELECT id, industry_name FROM lead_industry 
      ORDER BY industry_name ASC
     `;
-    return pool.query(query, );
+    return pool.query(query);
   } catch (error) {
     console.error("Error executing fetchLeadIndustryQuery:", error);
     throw error;
   }
+};
+
+export const searchTermQuery = (searchTerm) => {
+  try {
+    const query = `
+     SELECT id, 
+            company_name, 
+            product, 
+            industry_type, 
+            status, 
+            DATE_FORMAT(created_at, '%Y-%m-%d') AS created_date FROM leads WHERE LOWER(company_name) LIKE LOWER(?) OR LOWER(industry_type) LIKE LOWER(?) AND is_archived = FALSE
+    `;
+    const value = `%${searchTerm.toLowerCase()}%`;
+    const values = [value, value]; 
+    return pool.query(query, values);
+  } catch (error) {
+    console.error("Error executing searchTermQuery:", error);
+    throw error;
+  }
+};
+
+export const searchLeadForLeadsPageQuery = (searchTerm, is_admin, user_id) => {
+    try {
+        const queryParams = [];
+
+        let query = `
+            SELECT *
+            FROM (
+                SELECT 
+                    l.id AS id,
+                    l.company_name,
+                    l.product,
+                    l.industry_type,
+                    l.status,
+                    logs.comment AS latest_comment,
+                    DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date,
+                    ROW_NUMBER() OVER (PARTITION BY l.id ORDER BY logs.created_at DESC) AS rn
+                FROM leads AS l
+                LEFT JOIN lead_communication AS lcom 
+                    ON lcom.lead_id = l.id
+                LEFT JOIN lead_communication_logs AS logs 
+                    ON logs.lead_communication_id = lcom.id
+                WHERE LOWER(l.company_name) LIKE LOWER(?) OR LOWER(l.industry_type) LIKE LOWER(?) AND l.is_archived = FALSE
+        `;
+
+        const value = `%${searchTerm.toLowerCase()}%`;
+        queryParams.push(value)
+        queryParams.push(value)
+        if (!is_admin) {
+            query += ` AND lcom.assignee_id = ?`;
+            queryParams.push(user_id);
+        }
+
+        query += `
+            ) AS ranked
+            WHERE rn = 1
+            ORDER BY latest_comment_date DESC
+        `;
+
+        return pool.query(query, queryParams);
+    } catch (error) {
+        console.error("Error executing searchLeadForLeadsPageQuery:", error);
+        throw error;
+    }
 };
