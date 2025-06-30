@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS lead_communication (
     id CHAR(36) PRIMARY KEY,
     lead_id CHAR(36),
     assignee_id CHAR(36),
+    assignee_type ENUM ('user', 'admin') DEFAULT 'user',
     description varchar(255),
     created_at datetime DEFAULT CURRENT_TIMESTAMP,
     updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -176,7 +176,7 @@ export const fetchLeadDetailQuery = (array) => {
                     GROUP BY lead_id
                 ) AS contact_data ON contact_data.lead_id = l.id
 
-                LEFT JOIN lead_communication AS lcom ON lcom.lead_id = l.id
+                LEFT JOIN lead_communication AS lcom ON lcom.lead_id = l.id AND lcom.assignee_type = 'user'
                 LEFT JOIN users AS u ON u.id = lcom.assignee_id
 
                 WHERE l.is_archived = FALSE 
