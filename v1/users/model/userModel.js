@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash varchar(255) NOT NULL,
     phone bigint,
     jwt_token varchar(255),
-    role ENUM ('admin', 'user') DEFAULT 'user',
+    role ENUM ('super_admin', 'admin', 'user') DEFAULT 'user',
     is_active boolean DEFAULT TRUE,
     created_at datetime DEFAULT CURRENT_TIMESTAMP,
     updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
