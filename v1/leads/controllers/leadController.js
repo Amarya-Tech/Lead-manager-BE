@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertCompanyDataFromExcelQuery, insertLeadIndustries, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertCompanyDataFromExcelQuery, insertLeadIndustries, searchLeadForLeadsPageQuery, searchTermQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserIdQuery } from "../../users/model/userQuery.js";
 import importExcel from "../../../utils/importExcel.js";
 
@@ -48,10 +48,10 @@ export const addLeadOffices = async (req, res, next) => {
         }
         let id = uuidv4();
         
-        let { lead_id, address, city, district, country, postal_code} = req.body;
+        let { lead_id, address, city, state, country, postal_code} = req.body;
         address = toTitleCase(address);
         city = toTitleCase(city);
-        district = toTitleCase(district);
+        state = toTitleCase(state);
         country = toTitleCase(country);
 
         const [office_data] = await createLeadOfficeQuery([
@@ -59,7 +59,7 @@ export const addLeadOffices = async (req, res, next) => {
             lead_id,
             address,
             city, 
-            district,
+            state,
             country,
             postal_code
         ]);
@@ -285,6 +285,48 @@ export const fetchIndustryType = async (req, res, next) => {
        let  [data1] = await fetchLeadIndustryQuery();
 
         return successResponse(res, data1, 'Industry fetched successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const searchTermInLead = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        
+        const term = req.query.term
+        let  [data1] = await searchTermQuery(term);
+
+        return successResponse(res, data1, 'Leads searched successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const searchTermInLeadsPage = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        
+        const term = req.query.term
+        let is_admin = false;
+        const user_id = req.params.id
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+
+        if(isUserExist[0].role == "admin"){
+            is_admin = true
+        }
+
+        let  [data1] = await searchLeadForLeadsPageQuery(term, is_admin, user_id);
+
+        return successResponse(res, data1, 'Leads searched successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }

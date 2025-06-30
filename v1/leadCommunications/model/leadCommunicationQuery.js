@@ -35,14 +35,25 @@ export const addAssigneeToLeadQuery = (array)=> {
     }
 }
 
+export const updateAssigneeToLeadQuery = (array)=> {
+    try {
+        let query = `UPDATE lead_communication SET assignee_id = ? WHERE lead_id =?`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing updateAssigneeToLeadQuery:", error);
+        throw error;
+    }
+}
+
 export const addCommentToLeadQuery = (array)=> {
     try {
         let query = `INSERT INTO lead_communication_logs (
             id,
             lead_communication_id,
             created_by,
-            comment
-        ) VALUES (?,?,?,?)`
+            comment,
+            action
+        ) VALUES (?,?,?,?,?)`
         return pool.query(query, array);
     } catch (error) {
         console.error("Error executing addCommentToLeadQuery:", error);
@@ -70,6 +81,7 @@ export const fetchLogsQuery = (ids)=>{
                 logs.created_by,
                 CONCAT(u.first_name, ' ', u.last_name) AS created_by_name,
                 logs.comment,
+                logs.action,
                 logs.created_at AS created_date
             FROM lead_communication_logs AS logs
             JOIN users AS u ON u.id = logs.created_by
