@@ -23,7 +23,7 @@ app.get('/fetch-lead-log-list/:id', authenticateUserAdminSession, logOutVal, fet
 app.get('/fetch-industry-type', authenticateUserAdminSession,  fetchIndustryType);
 app.get('/search', authenticateUserAdminSession, searchTermInLead);
 app.get('/search-term/:id', authenticateUserAdminSession, searchTermInLeadsPage);
-app.post('/insert-lead-data-from-excel/:id', authenticateUserAdminSession,  insertDataFromExcel);
+app.post('/insert-lead-data-from-excel/:id', upload.single('file'), authenticateUserAdminSession,  insertDataFromExcel);
 
 
 app.use("/", router);
