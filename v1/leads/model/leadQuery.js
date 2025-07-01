@@ -1,16 +1,6 @@
 import pool from "../../../config/db.js"
 import { v4 as uuidv4 } from 'uuid';
 
-// export const checkUserEmailQuery = (array)=>{
-//     try {
-//         let query = `SELECT * FROM users WHERE email = ?`
-//         return pool.query(query, array);
-//     } catch (error) {
-//         console.error("Error executing checkUserEmailQuery:", error);
-//         throw error;
-//     }
-// }
-
 export const createLeadQuery = (array)=> {
     try {
         let query = `INSERT INTO leads (
@@ -28,7 +18,6 @@ export const createLeadQuery = (array)=> {
         throw error;
     }
 }
-
 
 export const createLeadOfficeQuery = (array)=> {
     try {
@@ -324,3 +313,96 @@ export const searchLeadForLeadsPageQuery = (searchTerm, is_admin, user_id) => {
         throw error;
     }
 };
+
+export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) => {
+  try {
+    const values = data.map(item => [
+      uuidv4(),
+      item.company_name,
+      item.industry_type,
+      created_by
+    ]);
+
+    const insertQuery = `
+      INSERT INTO leads (id, company_name, industry_type, created_by)
+      VALUES ?
+    `;
+
+    await pool.query(insertQuery, [values]);
+
+    const fetchQuery = `
+      SELECT * FROM leads WHERE created_by = ?
+      ORDER BY created_at DESC LIMIT ?
+    `;
+
+    const [rows] = await pool.query(fetchQuery, [created_by, data.length]);
+
+    return rows;
+
+  } catch (error) {
+    console.error("Error in insertAndFetchCompanyDataFromExcel:", error);
+    throw error;
+  }
+};
+
+export const insertOfficeDataFromExcelQuery = (data)=> {
+    try {
+        const filteredData = data.filter(item => item.address && item.address.trim() !== "");
+
+        if (filteredData.length === 0) {
+            console.log("No valid office data to insert.");
+            return Promise.resolve([[], null]);
+        }
+
+        let query = `INSERT INTO lead_office (
+            id,
+            lead_id,
+            address
+        ) VALUES ?`
+
+        const values = filteredData.map(item => [
+            uuidv4(),                  
+            item.lead_id,
+            item.address               
+        ]);
+        return pool.query(query, [values]);
+    } catch (error) {
+        console.error("Error executing insertOfficeDataFromExcelQuery:", error);
+        throw error;
+    }
+}
+
+export const insertContactDataFromExcelQuery = (data, created_by)=> {
+    try {
+        const filteredData = data.filter(item => item.name && item.name.trim() !== "");
+
+        if (filteredData.length === 0) {
+            console.log("No valid contact data to insert.");
+            return Promise.resolve([[], null]);
+        }
+
+        let query = `INSERT INTO lead_contact (
+            id,
+            lead_id,
+            name,
+            designation,
+            phone,
+            email,
+            created_by
+        ) VALUES ?`
+
+        const values = filteredData.map(item => [
+            uuidv4(),                  
+            item.lead_id,
+            item.name.trim(),
+            item.designation?.trim() || null,
+            item.phone && item.phone.trim() !== "" ? item.phone.trim() : null,
+            item.email && item.email.trim() !== "" ? item.email.trim() : null,
+            created_by               
+        ]);
+        return pool.query(query, [values]);
+    } catch (error) {
+        console.error("Error executing insertOfficeDataFromExcelQuery:", error);
+        throw error;
+    }
+}

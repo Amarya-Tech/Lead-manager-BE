@@ -3,8 +3,9 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertLeadIndustries, searchLeadForLeadsPageQuery, searchTermQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserIdQuery } from "../../users/model/userQuery.js";
+import importExcel from "../../../utils/importExcel.js";
 
 dotenv.config();
 
@@ -326,6 +327,69 @@ export const searchTermInLeadsPage = async (req, res, next) => {
         let  [data1] = await searchLeadForLeadsPageQuery(term, is_admin, user_id);
 
         return successResponse(res, data1, 'Leads searched successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const insertDataFromExcel = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        const fileBuffer = req.file.buffer; 
+        const user_id = req.params.id;
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+
+        if(isUserExist.length == 0 ){
+            return notFoundResponse(res, [], "User not found")
+        }
+        
+        let excelData = importExcel(fileBuffer)
+
+        for (let i = 0; i < excelData.length; i++) {
+            if (excelData[i].validation_error != null) {
+               return errorResponse(res, excelData, "Error in file, please update and then try again.")
+            }
+        }
+
+        const companyDetails = excelData.map(obj => {
+            let newObj = {}
+            newObj['company_name'] = obj['company_name']
+            newObj['industry_type'] = obj['industry_type']
+            return newObj
+        })
+
+        let data1 = await insertAndFetchCompanyDataFromExcelQuery(companyDetails, user_id)
+
+        const officeDetails = excelData.map(obj =>{
+            let newObj = {};
+            const matched = data1.find(item => item.company_name === obj.company_name);
+
+            newObj['lead_id'] = matched.id
+            newObj['address'] = obj['address']
+            return newObj
+        })
+
+        let data2 = await insertOfficeDataFromExcelQuery(officeDetails)
+
+        const contactDetails = excelData.map(obj =>{
+            let newObj = {};
+            const matched = data1.find(item => item.company_name === obj.company_name);
+
+            newObj['lead_id'] = matched.id
+            newObj['name'] = obj['contact_person']
+            newObj['designation'] = obj['designation']
+            newObj['phone'] = obj['phone_number']
+            newObj['email'] = obj['email']
+            return newObj
+        })
+
+        let data3 = await insertContactDataFromExcelQuery(contactDetails, user_id)
+
+        return successResponse(res, data1,  'Industry added successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }
