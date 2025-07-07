@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import multer from 'multer';
 import { addLeadContactVal, addLeadOfcVal, createLeadVal, logOutVal, updateLeadContactVal, updateLeadOfcVal, updateLeadVal } from '../../../utils/validation.js';
-import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryType, fetchLeadDetails, fetchLeadLogDetails, fetchLeadTableDetails, searchTermInLead, searchTermInLeadsPage, insertDataFromExcel, updateLead, updateLeadContact, updateLeadOffices } from '../controllers/leadController.js';
+import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryType, fetchLeadDetails, fetchLeadLogDetails, fetchLeadTableDetails, searchTermInLead, searchTermInLeadsPage, insertDataFromExcel, updateLead, updateLeadContact, updateLeadOffices, insertCompanyCommentDataFromExcel } from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 import { authenticateUserAdminSuperAdminSession } from '../../../middlewares/allThreeRoleAuth.js';
@@ -25,6 +25,7 @@ app.get('/fetch-industry-type', authenticateUserAdminSession,  fetchIndustryType
 app.get('/search', authenticateUserAdminSession, searchTermInLead);
 app.get('/search-term/:id', authenticateUserAdminSession, searchTermInLeadsPage);
 app.post('/insert-lead-data-from-excel/:id', upload.single('file'), authenticateUserAdminSuperAdminSession,  insertDataFromExcel); 
+app.post('/insert-lead-comment-data-from-excel/:id', upload.single('file'), authenticateUserAdminSuperAdminSession,  insertCompanyCommentDataFromExcel); 
 
 
 app.use("/", router);

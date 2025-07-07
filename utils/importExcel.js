@@ -1,6 +1,6 @@
 import XLSX from 'xlsx';
 
-export default function importExcel(fileBuffer){;
+export function importExcel(fileBuffer){;
 
     const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
@@ -57,4 +57,45 @@ function excelChecks (excelData){
     })
 
     return transformed
+}
+
+export function importCommentExcel(fileBuffer){;
+
+    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const excelData = XLSX.utils.sheet_to_json(worksheet);
+    const isCheckedData = companyChecksOnExcel(excelData)
+    return isCheckedData; 
+}
+
+function companyChecksOnExcel (excelData){
+
+    const requiredFields = [
+        'company_name'
+    ]
+    const transformed = excelData.map(obj => {
+        let newObj = {}
+        for (const key in obj) {
+            const newKey = key.toLowerCase().replace(/\s+/g, '_');
+            newObj[newKey] = obj[key];
+        }
+
+        const errors = [];
+        if (!newObj.company_name || newObj.company_name.trim() === '') {
+            errors.push("company_name is required");
+        }
+
+        newObj.validation_error = errors.length > 0 ? errors.join('; ') : null;
+
+        requiredFields.forEach(field => {
+            if (!(field in newObj)) {
+            newObj[field] = '';
+            }
+        });
+
+        return newObj;
+    })
+
+    return transformed;
 }
