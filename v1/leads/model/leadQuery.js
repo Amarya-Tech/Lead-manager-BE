@@ -406,3 +406,13 @@ export const insertContactDataFromExcelQuery = (data, created_by)=> {
         throw error;
     }
 }
+
+export const fetchCompanyIdQuery = (array) => {
+  try {
+    const query = ` SELECT id FROM leads WHERE company_name = ?`;
+    return pool.query(query, array);
+  } catch (error) {
+    console.error("Error executing fetchCompanyIdQuery:", error);
+    throw error;
+  }
+};

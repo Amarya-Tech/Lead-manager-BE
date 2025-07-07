@@ -34,6 +34,7 @@ export const addAssigneeToLead = async (req, res, next) => {
             id,
             lead_id,
             assignee_id,
+            'user',
             description
         ]);
 
@@ -100,6 +101,7 @@ export const addComments = async (req, res, next) => {
                 com_id,
                 lead_id,
                 user_id,
+                isAssigneeExist[0].role,
                 description || ""
             ]);
 

@@ -26,8 +26,9 @@ export const addAssigneeToLeadQuery = (array)=> {
             id,
             lead_id,
             assignee_id,
+            assignee_type,
             description
-        ) VALUES (?,?,?,?)`
+        ) VALUES (?,?,?,?,?)`
         return pool.query(query, array);
     } catch (error) {
         console.error("Error executing addAssigneeToLeadQuery:", error);
