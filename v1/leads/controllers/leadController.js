@@ -1,7 +1,7 @@
 import { validationResult } from "express-validator";
 import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
-import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
+import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
 import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserIdQuery } from "../../users/model/userQuery.js";
@@ -351,7 +351,7 @@ export const insertDataFromExcel = async (req, res, next) => {
 
         for (let i = 0; i < excelData.length; i++) {
             if (excelData[i].validation_error != null) {
-               return errorResponse(res, excelData, "Error in file, please update and then try again.")
+               return minorErrorResponse(res, excelData, "Error in file, please update and then try again.")
             }
         }
 

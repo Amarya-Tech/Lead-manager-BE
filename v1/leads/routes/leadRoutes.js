@@ -4,6 +4,7 @@ import { addLeadContactVal, addLeadOfcVal, createLeadVal, logOutVal, updateLeadC
 import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryType, fetchLeadDetails, fetchLeadLogDetails, fetchLeadTableDetails, searchTermInLead, searchTermInLeadsPage, insertDataFromExcel, updateLead, updateLeadContact, updateLeadOffices } from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
+import { authenticateUserAdminSuperAdminSession } from '../../../middlewares/allThreeRoleAuth.js';
 const app = express()
 const router = Router();
 const storage = multer.memoryStorage();
@@ -23,7 +24,7 @@ app.get('/fetch-lead-log-list/:id', authenticateUserAdminSession, logOutVal, fet
 app.get('/fetch-industry-type', authenticateUserAdminSession,  fetchIndustryType);
 app.get('/search', authenticateUserAdminSession, searchTermInLead);
 app.get('/search-term/:id', authenticateUserAdminSession, searchTermInLeadsPage);
-app.post('/insert-lead-data-from-excel/:id', upload.single('file'), authenticateUserAdminSession,  insertDataFromExcel);
+app.post('/insert-lead-data-from-excel/:id', upload.single('file'), authenticateUserAdminSuperAdminSession,  insertDataFromExcel); 
 
 
 app.use("/", router);
