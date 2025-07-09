@@ -77,14 +77,14 @@ export const userLogin = async (req, res, next) => {
 
         await updateTokenQuery([token, user_id]);
         res.cookie('jwt', token, {
-            httpOnly: false,
+            httpOnly: true,
             sameSite: isProduction ? 'None' : 'Lax',
             secure: isProduction,                  
             maxAge: parseInt(process.env.JWT_EXPIRATION_TIME) * 1000
         });
 
         res.cookie('user_id', isUserExist[0].id, {
-            httpOnly: false,
+            httpOnly: true,
             sameSite: isProduction ? 'None' : 'Lax',
             secure: isProduction,
             path: '/',
@@ -92,7 +92,7 @@ export const userLogin = async (req, res, next) => {
         });
 
          res.cookie('role', isUserExist[0].role, {
-            httpOnly: false,
+            httpOnly: true,
             sameSite: isProduction ? 'None' : 'Lax',
             secure: isProduction,
             path: '/',
