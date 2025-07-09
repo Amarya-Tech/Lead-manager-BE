@@ -104,6 +104,7 @@ export const userLogin = async (req, res, next) => {
             user_id: isUserExist[0].id,
             user_name: isUserExist[0].username,
             role: isUserExist[0].role,
+            jwt:token,
             full_name: isUserExist[0].first_name + ' ' + isUserExist[0].last_name
         }], 'You are successfully logged in');
 
