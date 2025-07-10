@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { getTokenSessionById } from "../utils/helper.js"; // Adjust import paths
 
 export const authenticateUserSession = async (req, res, next) => {
-    const token = req.cookies.jwt
+    const token = req.cookies.jwt || req.headers['x-access-token']
     const user_id = req.body.id || req.params.id
     const encrypted_user_id = req.headers['x-encryption-key'];
 
