@@ -266,7 +266,6 @@ export const fetchLeadLogDetails = async (req, res, next) => {
 //         const data =  req.body.data
 //         console.log(data)
 
-
 //        let  [data1] = await insertLeadIndustries(data);
 
 //         return successResponse(res, data1, 'Industry inserted successfully');
