@@ -252,7 +252,7 @@ export const fetchLeadLogDetails = async (req, res, next) => {
 
         return successResponse(res, data, 'Lead table data fetched Successfully');
     } catch (error) {
-        return internalServerErrorResponse(res, error);
+        return internalServerErrorResponse(res, error); 
     }
 };
 
