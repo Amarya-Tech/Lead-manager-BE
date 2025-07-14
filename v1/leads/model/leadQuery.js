@@ -77,12 +77,21 @@ export const archiveLeadQuery = (array) => {
 
 export const fetchLeadTableListQuery = () => {
     try{
-        let query = `SELECT id, company_name, 
-        product, 
-        industry_type, 
-        status, 
-        DATE_FORMAT(created_at, '%Y-%m-%d') AS created_date
-        FROM leads WHERE is_archived = FALSE`
+        let query = `SELECT 
+                l.id, 
+                l.company_name, 
+                l.product, 
+                l.industry_type, 
+                l.status, 
+                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+            FROM leads l
+            LEFT JOIN lead_communication lc 
+                ON lc.lead_id = l.id AND lc.assignee_type = 'user'
+            LEFT JOIN users u 
+                ON u.id = lc.assignee_id
+            WHERE l.is_archived = FALSE;
+`
         return pool.query(query);
     } catch (error) {
         console.error("Error executing fetchLeadTableListQuery:", error);
@@ -97,14 +106,16 @@ export const fetchLeadTableListUserQuery = (array) => {
                 l.product, 
                 l.industry_type, 
                 l.status, 
+                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,  
                 DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date
             FROM leads l
+            LEFT JOIN users AS u ON u.id = ?
             WHERE l.is_archived = FALSE
             AND l.id IN (
                 SELECT lc.lead_id
                 FROM lead_communication lc
                 WHERE lc.assignee_id = ?
-            )`          
+            )`
         return pool.query(query, array);
     } catch (error) {
         console.error("Error executing fetchLeadTableListQuery:", error);
@@ -253,15 +264,26 @@ export const fetchLeadIndustryQuery = () => {
 export const searchTermQuery = (searchTerm) => {
   try {
     const query = `
-     SELECT id, 
-            company_name, 
-            product, 
-            industry_type, 
-            status, 
-            DATE_FORMAT(created_at, '%Y-%m-%d') AS created_date FROM leads WHERE LOWER(company_name) LIKE LOWER(?) OR LOWER(industry_type) LIKE LOWER(?) AND is_archived = FALSE
+            SELECT 
+            leads.id, 
+            leads.company_name, 
+            leads.product, 
+            leads.industry_type, 
+            leads.status, 
+            CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
+            DATE_FORMAT(leads.created_at, '%Y-%m-%d') AS created_date 
+        FROM leads 
+        LEFT JOIN lead_communication ON lead_communication.lead_id = leads.id AND lead_communication.assignee_type = 'user'
+        LEFT JOIN users AS u ON u.id = lead_communication.assignee_id
+        WHERE (
+            LOWER(company_name) LIKE LOWER(?) 
+            OR LOWER(industry_type) LIKE LOWER(?) 
+            OR LOWER(product) LIKE LOWER(?)
+        )
+        AND is_archived = FALSE;
     `;
     const value = `%${searchTerm.toLowerCase()}%`;
-    const values = [value, value]; 
+    const values = [value, value, value]; 
     return pool.query(query, values);
   } catch (error) {
     console.error("Error executing searchTermQuery:", error);
@@ -290,10 +312,15 @@ export const searchLeadForLeadsPageQuery = (searchTerm, is_admin, user_id) => {
                     ON lcom.lead_id = l.id
                 LEFT JOIN lead_communication_logs AS logs 
                     ON logs.lead_communication_id = lcom.id
-                WHERE LOWER(l.company_name) LIKE LOWER(?) OR LOWER(l.industry_type) LIKE LOWER(?) AND l.is_archived = FALSE
+                WHERE (
+                    LOWER(company_name) LIKE LOWER(?) 
+                    OR LOWER(industry_type) LIKE LOWER(?) 
+                    OR LOWER(product) LIKE LOWER(?)
+                ) AND l.is_archived = FALSE
         `;
 
         const value = `%${searchTerm.toLowerCase()}%`;
+        queryParams.push(value)
         queryParams.push(value)
         queryParams.push(value)
         if (!is_admin) {
@@ -319,12 +346,13 @@ export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) 
     const values = data.map(item => [
       uuidv4(),
       item.company_name,
+      item.product,
       item.industry_type,
       created_by
     ]);
 
     const insertQuery = `
-      INSERT INTO leads (id, company_name, industry_type, created_by)
+      INSERT INTO leads (id, company_name, product, industry_type, created_by)
       VALUES ?
     `;
 
@@ -357,13 +385,19 @@ export const insertOfficeDataFromExcelQuery = (data)=> {
         let query = `INSERT INTO lead_office (
             id,
             lead_id,
-            address
+            address,
+            city,
+            state,
+            country
         ) VALUES ?`
 
         const values = filteredData.map(item => [
             uuidv4(),                  
             item.lead_id,
-            item.address               
+            item.address,              
+            item.city,              
+            item.state,              
+            item.country,              
         ]);
         return pool.query(query, [values]);
     } catch (error) {
@@ -413,6 +447,18 @@ export const fetchCompanyIdQuery = (array) => {
     return pool.query(query, array);
   } catch (error) {
     console.error("Error executing fetchCompanyIdQuery:", error);
+    throw error;
+  }
+};
+
+export const fetchCompanyNameDuplicatesQuery = (array) => {
+  try {
+    const query = `
+     SELECT id, company_name FROM leads WHERE company_name = ?
+    `;
+    return pool.query(query, array);
+  } catch (error) {
+    console.error("Error executing fetchCompanyNameDuplicatesQuery:", error);
     throw error;
   }
 };

@@ -24,7 +24,10 @@ function excelChecks (excelData){
     const transformed = excelData.map(obj => {
         const newObj = {};
         for (const key in obj) {
-            const newKey = key.toLowerCase().replace(/\s+/g, '_');
+            let newKey = key.toLowerCase().replace(/\s+/g, '_');
+            if(key == 'State/province'){
+                newKey = 'state' 
+            }
             newObj[newKey] = obj[key];
         }
 

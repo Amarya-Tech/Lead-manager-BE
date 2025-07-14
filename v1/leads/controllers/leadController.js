@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchCompanyIdQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserIdQuery } from "../../users/model/userQuery.js";
 import { importExcel, importCommentExcel } from "../../../utils/importExcel.js";
 import { addAssigneeToLeadQuery, addCommentToLeadQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
@@ -206,7 +206,7 @@ export const fetchLeadTableDetails = async (req, res, next) => {
         if (isUserExist[0].role === 'admin') {
             [data] = await fetchLeadTableListQuery();
         } else {
-            [data] = await fetchLeadTableListUserQuery([user_id]);
+            [data] = await fetchLeadTableListUserQuery([user_id, user_id]);
         }
 
 
@@ -350,7 +350,16 @@ export const insertDataFromExcel = async (req, res, next) => {
         let excelData = importExcel(fileBuffer)
 
         for (let i = 0; i < excelData.length; i++) {
-            if (excelData[i].validation_error != null) {
+            const [duplicates] = await fetchCompanyNameDuplicatesQuery([excelData[i].company_name]);
+
+            if (!Array.isArray(excelData[i].validation_error)) {
+                excelData[i].validation_error = [];
+            }
+            if(duplicates && duplicates.length >0 && excelData[i].company_name == duplicates[0].company_name){
+                excelData[i].validation_error.push("company_name already exists")
+            }
+
+            if (excelData[i].validation_error.length > 0) {
                 return minorErrorResponse(res, excelData, "Error in file, please update and then try again.")
             }
         }
@@ -359,6 +368,7 @@ export const insertDataFromExcel = async (req, res, next) => {
             let newObj = {}
             newObj['company_name'] = obj['company_name']
             newObj['industry_type'] = obj['industry_type']
+            newObj['product'] = obj['product']
             return newObj
         })
 
@@ -370,6 +380,9 @@ export const insertDataFromExcel = async (req, res, next) => {
 
             newObj['lead_id'] = matched.id
             newObj['address'] = obj['address']
+            newObj['city'] = obj['city']
+            newObj['state'] = obj['state']
+            newObj['country'] = obj['country']
             return newObj
         })
 
