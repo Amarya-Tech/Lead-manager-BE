@@ -64,8 +64,9 @@ export const updateAssigneeToLead = async (req, res, next) => {
         if(isAssigneeExist.length === 0){
             return notFoundResponse(res, [], 'User not found');
         }
+        console.log(isAssigneeExist, "isAssigneeExist")
 
-        const [lead_data] = await updateAssigneeToLeadQuery([assignee_id, lead_id]);
+        const [lead_data] = await updateAssigneeToLeadQuery([assignee_id, lead_id, description, isAssigneeExist[0].role]);
 
         return successResponse(res, lead_data, 'Assignee updated Successfully');
     } catch (error) {

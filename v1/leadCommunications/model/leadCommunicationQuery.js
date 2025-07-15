@@ -1,4 +1,5 @@
 import pool from "../../../config/db.js"
+import { v4 as uuidv4 } from 'uuid';
 
 export const isLeadExistQuery = (array)=>{
     try {
@@ -36,15 +37,30 @@ export const addAssigneeToLeadQuery = (array)=> {
     }
 }
 
-export const updateAssigneeToLeadQuery = (array)=> {
+export const updateAssigneeToLeadQuery = async ([assignee_id, lead_id, description, assignee_type ]) => {
     try {
-        let query = `UPDATE lead_communication SET assignee_id = ? WHERE lead_id =?`
-        return pool.query(query, array);
+        const [rows] = await pool.query(
+            'SELECT id FROM lead_communication WHERE lead_id = ?',
+            [lead_id]
+        );
+
+        if (rows.length > 0) {
+            return pool.query(
+                'UPDATE lead_communication SET assignee_id = ? WHERE lead_id = ?',
+                [assignee_id, lead_id]
+            );
+        } else {
+            return pool.query(
+                'INSERT INTO lead_communication (id, lead_id, assignee_id, assignee_type, description) VALUES (?, ?, ?, ?, ?)',
+                [ uuidv4(), lead_id, assignee_id, assignee_type, description ]
+            );
+        }
     } catch (error) {
-        console.error("Error executing updateAssigneeToLeadQuery:", error);
+        console.error("Error in updateAssigneeToLeadQuery:", error);
         throw error;
     }
-}
+};
+
 
 export const addCommentToLeadQuery = (array)=> {
     try {
