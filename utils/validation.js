@@ -38,7 +38,7 @@ export const setUserRoleVal = [
 ]
 
 export const createLeadVal = [
-    body('company_name').notEmpty().withMessage('Company name cannot be empty.').isString().withMessage("Company name must be a string."),
+    body('company_name').notEmpty().withMessage('Company name cannot be empty.').isString().withMessage("Company name must be a string.").isLength({ min: 3 }).withMessage('Company name must be at least 3 characters long.'),
     body('product').optional().notEmpty().withMessage('Product cannot be empty.').isString().withMessage("Product must be a string."),
     body('industry_type').notEmpty().withMessage('Industry type cannot be empty.'),
     body('export_value').optional().isInt().withMessage("Export Value must be a number."),

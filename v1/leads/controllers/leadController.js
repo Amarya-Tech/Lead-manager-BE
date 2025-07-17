@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, searchTermWithUserIdQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserIdQuery } from "../../users/model/userQuery.js";
 import { importExcel, importCommentExcel } from "../../../utils/importExcel.js";
 import { addAssigneeToLeadQuery, addCommentToLeadQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
@@ -297,11 +297,17 @@ export const searchTermInLead = async (req, res, next) => {
         if (!errors.isEmpty()) {
             return errorResponse(res, errors.array(), "")
         }
-
+        let data;
         const term = req.query.term
-        let [data1] = await searchTermQuery(term);
+        const user_id = req.params.id
+        const [isUserExist] = await checkUserIdQuery([user_id]);
 
-        return successResponse(res, data1, 'Leads searched successfully');
+        if (isUserExist[0].role === 'admin') {
+            [data] = await searchTermQuery(term);
+        } else {
+            [data] = await searchTermWithUserIdQuery(term, user_id);
+        }
+        return successResponse(res, data, 'Leads searched successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }
@@ -467,6 +473,28 @@ export const insertCompanyCommentDataFromExcel = async (req, res, next) => {
         );
 
         return successResponse(res, companyDetails, 'Comments added successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchMatchingCompanyRecords = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        let company_names= []
+        const term = req.query.company
+        let [data1] = await fetchCompanyNameDuplicatesQuery(term);
+
+        if(data1.length < 4){
+            for (let i=0; i<data1.length; i++){
+                company_names.push(data1[i].company_name)
+            }
+        }
+        return successResponse(res, {companies_matched_count : data1.length, company_names}, 'Matching companies fetched successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }

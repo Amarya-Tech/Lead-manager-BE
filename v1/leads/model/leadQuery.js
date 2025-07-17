@@ -279,11 +279,46 @@ export const searchTermQuery = (searchTerm) => {
             LOWER(company_name) LIKE LOWER(?) 
             OR LOWER(industry_type) LIKE LOWER(?) 
             OR LOWER(product) LIKE LOWER(?)
+            OR LOWER(u.first_name) LIKE LOWER(?)
+            OR LOWER(u.last_name) LIKE LOWER(?)
         )
         AND is_archived = FALSE;
     `;
     const value = `%${searchTerm.toLowerCase()}%`;
-    const values = [value, value, value]; 
+    const values = [value, value, value, value, value]; 
+    return pool.query(query, values);
+  } catch (error) {
+    console.error("Error executing searchTermQuery:", error);
+    throw error;
+  }
+};
+
+export const searchTermWithUserIdQuery = (searchTerm, userId) => {
+  try {
+    const user_id= userId
+    const query = `
+            SELECT 
+            leads.id, 
+            leads.company_name, 
+            leads.product, 
+            leads.industry_type, 
+            leads.status, 
+            CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
+            DATE_FORMAT(leads.created_at, '%Y-%m-%d') AS created_date 
+        FROM leads 
+        INNER JOIN lead_communication ON lead_communication.lead_id = leads.id AND lead_communication.assignee_id = ? AND lead_communication.assignee_type = 'user'
+        LEFT JOIN users AS u ON u.id = lead_communication.assignee_id
+        WHERE (
+            LOWER(company_name) LIKE LOWER(?) 
+            OR LOWER(industry_type) LIKE LOWER(?) 
+            OR LOWER(product) LIKE LOWER(?)
+            OR LOWER(u.first_name) LIKE LOWER(?)    
+            OR LOWER(u.last_name) LIKE LOWER(?)
+        )
+        AND is_archived = FALSE;
+    `;
+    const value = `%${searchTerm.toLowerCase()}%`;
+    const values = [user_id, value, value, value, value, value]; 
     return pool.query(query, values);
   } catch (error) {
     console.error("Error executing searchTermQuery:", error);
@@ -454,7 +489,7 @@ export const fetchCompanyIdQuery = (array) => {
 export const fetchCompanyNameDuplicatesQuery = (array) => {
   try {
     const query = `
-     SELECT id, company_name FROM leads WHERE company_name = ?
+     SELECT id, company_name FROM leads WHERE LOWER(company_name) LIKE CONCAT('%', LOWER(?), '%')
     `;
     return pool.query(query, array);
   } catch (error) {
