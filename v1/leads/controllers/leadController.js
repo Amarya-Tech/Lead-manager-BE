@@ -203,7 +203,7 @@ export const fetchLeadTableDetails = async (req, res, next) => {
         const user_id = req.params.id
         const [isUserExist] = await checkUserIdQuery([user_id]);
 
-        if (isUserExist[0].role === 'admin') {
+        if (isUserExist[0].role === 'admin' || isUserExist[0].role === 'super_admin') {
             [data] = await fetchLeadTableListQuery();
         } else {
             [data] = await fetchLeadTableListUserQuery([user_id, user_id]);
@@ -244,7 +244,7 @@ export const fetchLeadLogDetails = async (req, res, next) => {
         const user_id = req.params.id
         const [isUserExist] = await checkUserIdQuery([user_id]);
 
-        if (isUserExist[0].role == "admin") {
+        if (isUserExist[0].role == "admin" || isUserExist[0].role == "super_admin") {
             is_admin = true
         }
 
@@ -302,7 +302,7 @@ export const searchTermInLead = async (req, res, next) => {
         const user_id = req.params.id
         const [isUserExist] = await checkUserIdQuery([user_id]);
 
-        if (isUserExist[0].role === 'admin') {
+        if (isUserExist[0].role === 'admin' || isUserExist[0].role === 'super_admin') {
             [data] = await searchTermQuery(term);
         } else {
             [data] = await searchTermWithUserIdQuery(term, user_id);
@@ -326,7 +326,7 @@ export const searchTermInLeadsPage = async (req, res, next) => {
         const user_id = req.params.id
         const [isUserExist] = await checkUserIdQuery([user_id]);
 
-        if (isUserExist[0].role == "admin") {
+        if (isUserExist[0].role == "admin" || isUserExist[0].role == "super_admin") {
             is_admin = true
         }
 
@@ -421,6 +421,7 @@ export const insertCompanyCommentDataFromExcel = async (req, res, next) => {
         if (!errors.isEmpty()) {
             return errorResponse(res, errors.array(), "")
         }
+        let assignee_type;
         const fileBuffer = req.file.buffer;
         const user_id = req.params.id;
         const [isUserExist] = await checkUserIdQuery([user_id]);
@@ -450,7 +451,7 @@ export const insertCompanyCommentDataFromExcel = async (req, res, next) => {
                         uuidv4(),
                         lead_id,
                         user_id,
-                        'super_admin',
+                        assignee_type = 'super_admin',
                         ""
                     ]);
 

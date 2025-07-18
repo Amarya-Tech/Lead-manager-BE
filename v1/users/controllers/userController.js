@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs"
 import dotenv from "dotenv"
 import crypto from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
-import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
+import { errorResponse, internalServerErrorResponse, notFoundResponse, successResponse, unAuthorizedResponse } from "../../../utils/response.js";
 import { checkUserEmailQuery, checkUserIdQuery, getAllActiveUsersQuery, getAllUsersQuery, updateTokenQuery, updateUserActiveStatusQuery, updateUserQuery, updateUserRoleQuery, userRegistrationQuery } from "../model/userQuery.js";
 import { createDynamicUpdateQuery } from "../../../utils/helper.js";
 
