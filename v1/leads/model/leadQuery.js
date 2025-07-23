@@ -383,11 +383,13 @@ export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) 
       item.company_name,
       item.product,
       item.industry_type,
-      created_by
+      item.suitable_product,
+      created_by,
+      item.status
     ]);
 
     const insertQuery = `
-      INSERT INTO leads (id, company_name, product, industry_type, created_by)
+      INSERT INTO leads (id, company_name, product, industry_type, suitable_product, created_by, status)
       VALUES ?
     `;
 
@@ -466,7 +468,7 @@ export const insertContactDataFromExcelQuery = (data, created_by)=> {
             item.name.trim(),
             item.designation?.trim() || null,
             item.phone && item.phone.trim() !== "" ? item.phone.trim() : null,
-            item.email && item.email.trim() !== "" ? item.email.trim() : null,
+            item.email && item.email.trim() !== "" ? item.email.trim() : "",
             created_by               
         ]);
         return pool.query(query, [values]);

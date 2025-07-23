@@ -121,3 +121,81 @@ export const isLeadCommunicationIdExistQuery = (array)=>{
         throw error;
     }
 }
+
+export const insertAssigneeDataFromExcelQuery = async(data)=> {
+    try {
+        const filteredData = data.filter(item => 
+            item.assignee_id && item.assignee_id.trim() !== ""
+        );
+
+        if (filteredData.length === 0) {
+            return [];
+        }
+        const values = filteredData.map(item => [
+            uuidv4(),                  
+            item.lead_id,
+            item.assignee_id  && item.assignee_id.trim() !== "" ? item.assignee_id.trim() : null,              
+            item.assignee_type && item.assignee_type.trim() !== "" ? item.assignee_type.trim() : null,              
+            'Auto assigned from bulk import'          
+        ]);
+
+        const insertQuery = `INSERT INTO lead_communication (id, lead_id, assignee_id, assignee_type, description) VALUES ?`;
+
+        await pool.query(insertQuery, [values]);
+
+         const fetchQuery = `
+            SELECT * FROM lead_communication
+            ORDER BY created_at DESC LIMIT ?
+        `;
+
+        const [rows] = await pool.query(fetchQuery, [filteredData.length]);
+
+        return rows;
+    } catch (error) {
+        console.error("Error executing insertAssigneeDataFromExcelQuery:", error);
+        throw error;
+    }
+}
+
+export const insertAssigneeActionFromExcelQuery = async(data)=> {
+    try {
+        const values = data.map(item => [
+            uuidv4(),                  
+            item.lead_communication_id,
+            item.user_id,              
+            item.comment,              
+            item.action             
+        ]);
+
+        const insertQuery = `INSERT INTO lead_communication_logs (id, lead_communication_id, created_by, comment, action) VALUES ?`;
+
+        return await pool.query(insertQuery, [values]);
+    } catch (error) {
+        console.error("Error executing insertAssigneeActionFromExcelQuery:", error);
+        throw error;
+    }
+}
+
+export const addCommentToLeadUsingExcelQuery = async (data)=> {
+    try {
+        const [id, leadCommId, createdBy, comment, action, dateStr] = data;
+        const [day, month, year] = dateStr.split("/");
+
+        const formattedDate = `${year}-${month}-${day} 00:00:00`;
+        
+        let query = `INSERT INTO lead_communication_logs (
+            id,
+            lead_communication_id,
+            created_by,
+            comment,
+            action,
+            created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`
+
+        const values = [id, leadCommId, createdBy, comment, action, formattedDate]
+        return await pool.query(query, values);
+    } catch (error) {
+        console.error("Error executing addCommentToLeadUsingExcelQuery:", error);
+        throw error;
+    }
+}

@@ -48,6 +48,16 @@ export const checkUserIdQuery = (array)=>{
     }
 }
 
+export const checkUserExistsBasedOnEmailQuery = (array)=>{
+    try {
+        let query = `SELECT id, first_name, last_name, email, phone, role, is_active FROM users WHERE email = ?`
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing checkUserExistsBasedOnEmailQuery:", error);
+        throw error;
+    }
+}
+
 export const updateUserActiveStatusQuery = (array) => {
     try {
         let query = `UPDATE users SET is_active = ? WHERE id = ?`

@@ -19,19 +19,40 @@ function excelChecks (excelData){
         'phone_number',
         'contact_person',
         'designation',
-        'email'
+        'email',
+        'assignee',
+        'status',
+        'suitable_product'
     ];
+
+    const validStatusValues = ['lead', 'prospect', 'active prospect', 'expired lead', 'customer'];
+    const validProductValues = ['transport', 'import', 'export'];
+
     const transformed = excelData.map(obj => {
         const newObj = {};
         for (const key in obj) {
             let newKey = key.toLowerCase().replace(/\s+/g, '_');
-            if(key == 'State/province'){
-                newKey = 'state' 
-            }
+            if(key == 'State/province'){ newKey = 'state' }
+            if(key == 'Lead status' || key == 'Lead Status'){ newKey = 'status' }
             newObj[newKey] = obj[key];
         }
 
         const errors = [];
+         if (newObj.status) {
+            newObj.status = String(newObj.status).toLowerCase();
+            if (!validStatusValues.includes(newObj.status)) {
+                errors.push(`Invalid status: "${newObj.status}"`);
+            }
+        }
+
+        if (newObj.suitable_product) {
+            newObj.suitable_product = String(newObj.suitable_product).toLowerCase();
+            if (!validProductValues.includes(newObj.suitable_product)) {
+                errors.push(`Invalid suitable_product: "${newObj.suitable_product}"`);
+            }
+        }
+
+
         if (!newObj.company_name || newObj.company_name.trim() === '') {
             errors.push("company_name is required");
         }
@@ -43,6 +64,9 @@ function excelChecks (excelData){
         }
         if (newObj.contact_person && !newObj.designation ) {
             errors.push("designation is required");
+        }
+        if (newObj.status && !newObj.suitable_product ) {
+            errors.push("suitable product is required");
         }
         if (newObj.phone_number){
             newObj.phone_number = String(newObj.phone_number || "").replace(/\D/g, '');
@@ -75,7 +99,9 @@ export function importCommentExcel(fileBuffer){;
 function companyChecksOnExcel (excelData){
 
     const requiredFields = [
-        'company_name'
+        'company_name',
+        'date',
+        'user'
     ]
     const transformed = excelData.map(obj => {
         let newObj = {}
@@ -86,10 +112,16 @@ function companyChecksOnExcel (excelData){
 
         const errors = [];
         if (!newObj.company_name || newObj.company_name.trim() === '') {
-            errors.push("company_name is required");
+            errors.push("Company_name is required");
+        }
+        if (!newObj.date || newObj.date.trim() === '') {
+            errors.push("Date is required");
+        }
+        if (!newObj.user || newObj.user.trim() === '') {
+            errors.push("User is required");
         }
 
-        newObj.validation_error = errors.length > 0 ? errors.join('; ') : null;
+        newObj.validation_error = errors;
 
         requiredFields.forEach(field => {
             if (!(field in newObj)) {
