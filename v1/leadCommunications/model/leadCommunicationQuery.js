@@ -21,91 +21,78 @@ export const isAssigneeExistQuery = (array)=>{
     }
 }
 
-export const addAssigneeToLeadQuery = (array)=> {
-    try {
-        let query = `INSERT INTO lead_communication (
-            id,
-            lead_id,
-            assignee_id,
-            assignee_type,
-            description
-        ) VALUES (?,?,?,?,?)`
-        return pool.query(query, array);
-    } catch (error) {
-        console.error("Error executing addAssigneeToLeadQuery:", error);
-        throw error;
-    }
-}
+export const addAssigneeToLeadQuery = async ([leadId, assigneeId]) => {
+  try {
+    const query = `
+      UPDATE leads
+      SET assignee = ?
+      WHERE id = ?
+    `;
+    await pool.query(query, [assigneeId, leadId]);
 
-export const updateAssigneeToLeadQuery = async ([assignee_id, lead_id, description, assignee_type ]) => {
-    try {
-        const [rows] = await pool.query(
-            'SELECT id FROM lead_communication WHERE lead_id = ?',
-            [lead_id]
-        );
+    const [rows] = await pool.query(`SELECT * FROM leads WHERE id = ?`, [leadId]);
 
-        if (rows.length > 0) {
-            return pool.query(
-                'UPDATE lead_communication SET assignee_id = ? WHERE lead_id = ?',
-                [assignee_id, lead_id]
-            );
-        } else {
-            return pool.query(
-                'INSERT INTO lead_communication (id, lead_id, assignee_id, assignee_type, description) VALUES (?, ?, ?, ?, ?)',
-                [ uuidv4(), lead_id, assignee_id, assignee_type, description ]
-            );
-        }
-    } catch (error) {
-        console.error("Error in updateAssigneeToLeadQuery:", error);
-        throw error;
-    }
+    return rows;
+  } catch (error) {
+    console.error("Error executing addAssigneeToLeadQuery:", error);
+    throw error;
+  }
 };
 
-
-export const addCommentToLeadQuery = (array)=> {
+export const addCommentToLeadQuery = ([id, lead_id, created_by, comment, action, action_date]) => {
     try {
-        let query = `INSERT INTO lead_communication_logs (
-            id,
-            lead_communication_id,
-            created_by,
-            comment,
-            action
-        ) VALUES (?,?,?,?,?)`
-        return pool.query(query, array);
+        let query = "";
+        let values = [];
+
+        if (action === 'FOLLOW_UP') {
+            query = `
+                INSERT INTO lead_logs (
+                    id,
+                    lead_id,
+                    created_by,
+                    comment,
+                    action,
+                    action_date
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            `;
+            values = [id, lead_id, created_by, comment, action, action_date];
+        } else {
+            query = `
+                INSERT INTO lead_logs (
+                    id,
+                    lead_id,
+                    created_by,
+                    comment,
+                    action
+                ) VALUES (?, ?, ?, ?, ?)
+            `;
+            values = [id, lead_id, created_by, comment, action];
+        }
+
+        return pool.query(query, values);
     } catch (error) {
         console.error("Error executing addCommentToLeadQuery:", error);
         throw error;
     }
-}
+};
 
-export const fetchLeadCommunicationDataQuery = (array)=>{
+export const fetchLogsQuery = (id) => {
     try {
-        let query = `SELECT * FROM lead_communication WHERE lead_id = ?`
-        return pool.query(query, array);
-    } catch (error) {
-        console.error("Error executing fetchLeadCommunicationDataQuery:", error);
-        throw error;
-    }
-}
-
-export const fetchLogsQuery = (ids)=>{
-    try {
-       const placeholders = ids.map(() => '?').join(', ');
         const query = `
             SELECT 
                 logs.id,
-                logs.lead_communication_id,
+                logs.lead_id,
                 logs.created_by,
                 CONCAT(u.first_name, ' ', u.last_name) AS created_by_name,
                 logs.comment,
                 logs.action,
                 logs.created_at AS created_date
-            FROM lead_communication_logs AS logs
+            FROM lead_logs AS logs
             JOIN users AS u ON u.id = logs.created_by
-            WHERE logs.lead_communication_id IN (${placeholders})
+            WHERE logs.lead_id = ?
             ORDER BY logs.created_at DESC
         `;
-        return { query, values: ids };
+        return { query, values: [id] };
     } catch (error) {
         console.error("Error executing fetchLogsQuery:", error);
         throw error;
@@ -131,23 +118,21 @@ export const insertAssigneeDataFromExcelQuery = async(data)=> {
         if (filteredData.length === 0) {
             return [];
         }
-        const values = filteredData.map(item => [
-            uuidv4(),                  
-            item.lead_id,
-            item.assignee_id  && item.assignee_id.trim() !== "" ? item.assignee_id.trim() : null,              
-            item.assignee_type && item.assignee_type.trim() !== "" ? item.assignee_type.trim() : null,              
-            'Auto assigned from bulk import'          
-        ]);
+        const updatePromises = filteredData.map(item => {
+            const updateQuery = `
+                UPDATE leads
+                SET assignee = ?
+                WHERE id = ?
+            `;
+            return pool.query(updateQuery, [item.assignee_id.trim(), item.lead_id]);
+        });
 
-        const insertQuery = `INSERT INTO lead_communication (id, lead_id, assignee_id, assignee_type, description) VALUES ?`;
+        await Promise.all(updatePromises);
 
-        await pool.query(insertQuery, [values]);
-
-         const fetchQuery = `
-            SELECT * FROM lead_communication
-            ORDER BY created_at DESC LIMIT ?
+        const fetchQuery = `
+            SELECT * FROM leads
+            ORDER BY updated_at DESC LIMIT ?
         `;
-
         const [rows] = await pool.query(fetchQuery, [filteredData.length]);
 
         return rows;
@@ -160,14 +145,14 @@ export const insertAssigneeDataFromExcelQuery = async(data)=> {
 export const insertAssigneeActionFromExcelQuery = async(data)=> {
     try {
         const values = data.map(item => [
-            uuidv4(),                  
-            item.lead_communication_id,
-            item.user_id,              
-            item.comment,              
-            item.action             
+            uuidv4(),
+            item.lead_id,
+            item.user_id,
+            item.comment,
+            item.action
         ]);
 
-        const insertQuery = `INSERT INTO lead_communication_logs (id, lead_communication_id, created_by, comment, action) VALUES ?`;
+        const insertQuery = `INSERT INTO lead_logs (id, lead_id, created_by, comment, action) VALUES ?`;
 
         return await pool.query(insertQuery, [values]);
     } catch (error) {
@@ -183,7 +168,7 @@ export const addCommentToLeadUsingExcelQuery = async (data)=> {
 
         const formattedDate = `${year}-${month}-${day} 00:00:00`;
         
-        let query = `INSERT INTO lead_communication_logs (
+        let query = `INSERT INTO lead_logs (
             id,
             lead_communication_id,
             created_by,

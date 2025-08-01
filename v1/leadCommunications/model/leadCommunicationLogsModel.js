@@ -1,13 +1,14 @@
-const leadCommunicationLogsTable = `
-CREATE TABLE IF NOT EXISTS lead_communication_logs(
+const leadLogsTable = `
+CREATE TABLE IF NOT EXISTS lead_logs(
     id CHAR(36) PRIMARY KEY,
-    lead_communication_id CHAR(36),
+    lead_id CHAR(36) NOT NULL,
     created_by CHAR(36),
     comment varchar(522),
-    action ENUM('COMMENT', 'TO_PROSPECT', 'TO_ACTIVE_PROSPECT', 'TO_CUSTOMER', 'TO_EXPIRE', 'FOLLOW_UP', 'ASSIGNED') DEFAULT 'COMMENT',
+    action ENUM('COMMENT', 'TO_PROSPECT', 'TO_ACTIVE_PROSPECT', 'TO_CUSTOMER', 'TO_EXPIRE', 'FOLLOW_UP', 'ASSIGNED', 'CREATE_LEAD') DEFAULT 'COMMENT',
+    action_date DATE,
     created_at datetime DEFAULT CURRENT_TIMESTAMP,
-    updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (lead_communication_id) REFERENCES lead_communication(id) ON DELETE CASCADE
+    FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 )`;
 
-export default leadCommunicationLogsTable;
+export default leadLogsTable;

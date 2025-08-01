@@ -3,10 +3,10 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, searchTermWithUserIdQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, fetchPossibleInactiveLeadsQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, searchTermWithUserIdQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserExistsBasedOnEmailQuery, checkUserIdQuery } from "../../users/model/userQuery.js";
 import { importExcel, importCommentExcel } from "../../../utils/importExcel.js";
-import { addAssigneeToLeadQuery, addCommentToLeadQuery, addCommentToLeadUsingExcelQuery, insertAssigneeActionFromExcelQuery, insertAssigneeDataFromExcelQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
+import { addAssigneeToLeadQuery, addCommentToLeadQuery, addCommentToLeadUsingExcelQuery, insertAssigneeActionFromExcelQuery, insertAssigneeDataFromExcelQuery, isAssigneeExistQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
 
 dotenv.config();
 
@@ -18,11 +18,12 @@ export const createLead = async (req, res, next) => {
             return errorResponse(res, errors.array(), "")
         }
         let id = uuidv4();
-
+        let log_id = uuidv4();
         let { company_name, product, industry_type, export_value, insured_amount } = req.body;
         let user_id = req.params.id;
         company_name = toTitleCase(company_name);
         product = product ? toTitleCase(product) : product;
+        const [isUserExist] = await checkUserIdQuery([user_id]);
 
         const [lead_data] = await createLeadQuery([
             id,
@@ -34,6 +35,15 @@ export const createLead = async (req, res, next) => {
             user_id
         ]);
 
+        const addAssigneeData = {
+            id: log_id,
+            lead_id: lead_data.id,
+            created_by: user_id,
+            comment: `${lead_data.company_name} created!`,
+            action: 'CREATE_LEAD'
+        }
+
+       const [data] = await addCommentToLeadQuery([addAssigneeData.id, addAssigneeData.lead_id, addAssigneeData.created_by, addAssigneeData.comment, addAssigneeData.action])
         return successResponse(res, { "lead_id": id }, 'Lead Created Successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
@@ -202,13 +212,15 @@ export const fetchLeadTableDetails = async (req, res, next) => {
         let data;
         const user_id = req.params.id
         const [isUserExist] = await checkUserIdQuery([user_id]);
+         if(isUserExist.length === 0){
+            return notFoundResponse(res, [], 'User not found');
+        }
 
         if (isUserExist[0].role === 'admin' || isUserExist[0].role === 'super_admin') {
             [data] = await fetchLeadTableListQuery();
         } else {
             [data] = await fetchLeadTableListUserQuery([user_id, user_id]);
         }
-
 
         return successResponse(res, data, 'Lead table data fetched Successfully');
     } catch (error) {
@@ -416,31 +428,44 @@ export const insertDataFromExcel = async (req, res, next) => {
 
         let data3 = await insertContactDataFromExcelQuery(contactDetails, user_id)
 
-       const assigneeDetails = await Promise.all(
-            excelData.map(async (obj) => {
-                let newObj = {};
-                const matched = data1.find(item => item.company_name === obj.company_name);
-                const [isAssignee] = await checkUserExistsBasedOnEmailQuery([obj.assignee]);
+        const assigneeArray = [];
+        const createLeadArray = [];
 
-                newObj['lead_id'] = matched.id;
-                newObj['assignee_id'] = isAssignee[0]?.id;
-                newObj['assignee_type'] = isAssignee[0]?.role;
-                return newObj;
-            })
-        );
+        for (const obj of excelData) {
+            const matched = data1.find(item => item.company_name === obj.company_name);
+            if (!matched) continue;
 
-        let data4 = await insertAssigneeDataFromExcelQuery(assigneeDetails)
+            const [assigneePresent] = await checkUserExistsBasedOnEmailQuery([obj.assignee]);
 
-        if(data4 && data4.length > 0){
+            assigneeArray.push({
+                lead_id: matched.id,
+                assignee_id: assigneePresent?.[0]?.id || null,
+            });
+
+            createLeadArray.push({
+                lead_id: matched.id,
+                user_id,
+                comment: `${matched.company_name} Created!\n*Bulk Import*`,
+                action: 'CREATE_LEAD',
+            });
+        }
+
+        let data4 = await insertAssigneeDataFromExcelQuery(assigneeArray)
+        let data5 = await insertAssigneeActionFromExcelQuery(createLeadArray)
+
+        if (data4 && data4.length > 0) {
             const commentActions = [];
             const assignedActions = [];
 
-            excelData.forEach(obj => {
+            for (const obj of excelData) {
                 const matched = data1.find(item => item.company_name === obj.company_name);
-                if (!matched) return;
+                if (!matched) continue;
 
-                const matchedCommunication = data4.find(item => item.lead_id === matched.id);
-                if (!matchedCommunication) return;
+                const matchedCommunication = data4.find(item => item.id === matched.id);
+                if (!matchedCommunication) continue;
+
+                const [isAssigneeExist] = await isAssigneeExistQuery([matchedCommunication.assignee]);
+                if (!isAssigneeExist || !isAssigneeExist[0]) continue;
 
                 const statusActionMap = {
                     'lead': 'COMMENT',
@@ -450,28 +475,25 @@ export const insertDataFromExcel = async (req, res, next) => {
                     'expired lead': 'TO_EXPIRE'
                 };
 
-                const action = statusActionMap[obj.status] || null;
+                const action = statusActionMap[obj.status] || 'COMMENT';
 
-                const newObj = {
-                    lead_communication_id: matchedCommunication.id,
-                    user_id: matchedCommunication.assignee_id,
-                    comment: `Converted to ${obj.status} \nBulk Import`,
+                commentActions.push({
+                    lead_id: matchedCommunication.id,
+                    user_id: matchedCommunication.assignee,
+                    comment: `Converted to ${obj.status}\n*Bulk Import*`,
                     action: action
-                };
+                });
 
-                const newObj2 = {
-                    lead_communication_id: matchedCommunication.id,
-                    user_id: matchedCommunication.assignee_id,
-                    comment: matchedCommunication.description,
+                assignedActions.push({
+                    lead_id: matchedCommunication.id,
+                    user_id: matchedCommunication.assignee,
+                    comment: `${isAssigneeExist[0].id} | ${isAssigneeExist[0].first_name} ${isAssigneeExist[0].last_name}`,
                     action: 'ASSIGNED'
-                };
+                });
+            }
 
-                commentActions.push(newObj);
-                assignedActions.push(newObj2);
-            });
-
-            const data5 = await insertAssigneeActionFromExcelQuery(commentActions)
-            const data6 = await insertAssigneeActionFromExcelQuery(assignedActions)
+            const data6 = await insertAssigneeActionFromExcelQuery(assignedActions);
+            const data7 = await insertAssigneeActionFromExcelQuery(commentActions);
         }
 
         return successResponse(res, data1, 'Industry added successfully');
@@ -576,6 +598,79 @@ export const fetchMatchingCompanyRecords = async (req, res, next) => {
         }
         return successResponse(res, {companies_matched_count : data1.length, company_names}, 'Matching companies fetched successfully');
     } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchInactiveLead = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+
+        let user_id = req.params.id;
+        let action = req.body.action;
+        let inactiveLeads;
+        let is_admin = false;
+
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+
+        if (isUserExist[0].role == "admin" || isUserExist[0].role == "super_admin") {
+            is_admin = true
+        }
+
+        if(action == 'possible_inactive'){
+            [inactiveLeads] = await fetchPossibleInactiveLeadsQuery(is_admin, user_id)
+        }else{
+            [inactiveLeads] = await fetchInactiveLeadsQuery(is_admin, user_id)
+        }
+       
+        return successResponse(res, inactiveLeads, 'Leads fetched successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchAssignedUnassignedLead = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+
+        let user_id = req.params.id;
+        let action = req.body.action; 
+
+       const [leads] = await fetchAssignedLeadsQuery(action)
+       
+        return successResponse(res, leads, 'Leads fetched successfully');
+    } catch (error) {  
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchAllDifferentLeadTypesCount = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        
+        let is_admin = false;
+        let user_id = req.params.id;
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+         if (isUserExist[0].role == "admin" || isUserExist[0].role == "super_admin") {
+            is_admin = true
+        }
+
+       const [leads] = await fetchDifferentLeadsCountQuery(user_id, is_admin)
+       
+        return successResponse(res, leads, 'Leads fetched successfully');
+    } catch (error) {  
         return internalServerErrorResponse(res, error);
     }
 };

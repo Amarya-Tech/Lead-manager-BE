@@ -13,8 +13,8 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 
-app.post('/add-assignee', authenticateUserAdminSuperAdminSession, addAssigneeVal, addAssigneeToLead);
-app.post('/update-assignee', authenticateAdminSuperAdminSession, addAssigneeVal, updateAssigneeToLead);
+app.post('/add-assignee/:id', authenticateUserAdminSuperAdminSession, addAssigneeVal, addAssigneeToLead);
+app.post('/update-assignee/:id', authenticateAdminSuperAdminSession, addAssigneeVal, updateAssigneeToLead);
 app.post('/add-comments/:id/:lead_id', authenticateUserAdminSuperAdminSession, addCommnentVal,  addComments);
 app.get('/fetch-lead-log-details/:lead_id', authenticateUserAdminSuperAdminSession,  getLeadLogDetails);
 
