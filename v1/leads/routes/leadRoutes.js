@@ -3,7 +3,10 @@ import multer from 'multer';
 import { addLeadContactVal, addLeadOfcVal, createLeadVal, logOutVal, updateLeadContactVal, updateLeadOfcVal, updateLeadVal } from '../../../utils/validation.js';
 import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryType, fetchLeadDetails, fetchLeadLogDetails, fetchLeadTableDetails, searchTermInLead, 
     searchTermInLeadsPage, insertDataFromExcel, updateLead, updateLeadContact, updateLeadOffices, insertCompanyCommentDataFromExcel, 
-    fetchMatchingCompanyRecords} from '../controllers/leadController.js';
+    fetchMatchingCompanyRecords,
+    fetchInactiveLead,
+    fetchAssignedUnassignedLead,
+    fetchAllDifferentLeadTypesCount} from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 import { authenticateUserAdminSuperAdminSession } from '../../../middlewares/allThreeRoleAuth.js';
@@ -30,7 +33,10 @@ app.get('/search/:id', authenticateUserAdminSuperAdminSession, searchTermInLead)
 app.get('/search-term/:id', authenticateUserAdminSuperAdminSession, searchTermInLeadsPage);
 app.post('/insert-lead-data-from-excel/:id', upload.single('file'), authenticateSuperAdminSession,  insertDataFromExcel); 
 app.post('/insert-lead-comment-data-from-excel/:id', upload.single('file'), authenticateSuperAdminSession,  insertCompanyCommentDataFromExcel); 
-app.get('/matching-company-records', authenticateUserAdminSuperAdminSession,  fetchMatchingCompanyRecords); 
+app.get('/matching-company-records', authenticateUserAdminSuperAdminSession,  fetchMatchingCompanyRecords);
+app.post('/fetch-inactive-leads/:id', authenticateUserAdminSuperAdminSession,  fetchInactiveLead);
+app.post('/fetch-assigned-unassigned-leads/:id', authenticateAdminSuperAdminSession,  fetchAssignedUnassignedLead);
+app.get('/fetch-lead-type-count/:id', authenticateUserAdminSuperAdminSession,  fetchAllDifferentLeadTypesCount);
 
 
 app.use("/", router);
