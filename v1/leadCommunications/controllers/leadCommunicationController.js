@@ -166,3 +166,22 @@ try {
         return internalServerErrorResponse(res, error);
     }
 };
+
+export const fetchFollowupLeadsCountForToday = async (req, res, next) =>{
+try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        
+        let lead_id = req.params.lead_id;
+        
+        const { query, values } = fetchLogsQuery(lead_id);
+        const [rows] = await pool.query(query, values);
+
+        return successResponse(res, rows, 'Comments fetched successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};

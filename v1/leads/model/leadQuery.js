@@ -678,37 +678,72 @@ export const fetchDifferentLeadsCountQuery = (userId, isAdmin) => {
     }
 
     const query = `
-      SELECT
-        COUNT(*) AS total_leads,
-        COUNT(CASE WHEN assignee IS NOT NULL THEN 1 END) AS assigned_leads,
-        COUNT(CASE WHEN assignee IS NULL THEN 1 END) AS unassigned_leads,
-
-        COUNT(CASE 
-          WHEN last_log_date IS NOT NULL 
-               AND last_log_date < DATE_SUB(CURDATE(), INTERVAL ? DAY)
-          THEN 1
-        END) AS inactive_leads,
-
-        COUNT(CASE 
-          WHEN last_log_date IS NULL 
-               AND created_at < DATE_SUB(CURDATE(), INTERVAL ? DAY)
-          THEN 1
-        END) AS possible_inactive_leads
-
-      FROM (
         SELECT
-          l.id,
-          l.assignee,
-          l.created_at,
-          MAX(logs.created_at) AS last_log_date
-        FROM leads l
-        LEFT JOIN lead_logs logs ON logs.lead_id = l.id
-        ${whereClause}
-        GROUP BY l.id
-      ) AS lead_summary;
-    `;
+            COUNT(*) AS total_leads,
+            COUNT(CASE WHEN assignee IS NOT NULL THEN 1 END) AS assigned_leads,
+            COUNT(CASE WHEN assignee IS NULL THEN 1 END) AS unassigned_leads,
+
+            COUNT(CASE 
+            WHEN last_log_date IS NOT NULL 
+                AND last_log_date < DATE_SUB(CURDATE(), INTERVAL ? DAY)
+            THEN 1
+            END) AS inactive_leads,
+
+            COUNT(CASE 
+            WHEN last_log_date IS NULL 
+                AND created_at < DATE_SUB(CURDATE(), INTERVAL ? DAY)
+            THEN 1
+            END) AS possible_inactive_leads,
+
+            COUNT(CASE 
+            WHEN has_today_followup = 1
+            THEN 1
+            END) AS today_followups
+
+        FROM (
+            SELECT
+            l.id,
+            l.assignee,
+            l.created_at,
+            MAX(logs.created_at) AS last_log_date,
+            MAX(CASE WHEN DATE(logs.action_date) = CURDATE() THEN 1 ELSE 0 END) AS has_today_followup
+            FROM leads l
+            LEFT JOIN lead_logs logs ON logs.lead_id = l.id
+            ${whereClause}
+            GROUP BY l.id
+        ) AS lead_summary;
+`;
+
 
     return pool.query(query, queryParams);
+  } catch (error) {
+    console.error("Error executing fetchAssignedLeadsQuery:", error);
+    throw error;
+  }
+};
+
+export const fetchTodaysFollowupLeadsQuery = () => {
+  try {
+    let query =`
+           SELECT 
+                l.id, 
+                l.company_name, 
+                l.product, 
+                l.industry_type, 
+                l.status, 
+                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+            FROM 
+                leads l
+            LEFT JOIN 
+                users u ON u.id = l.assignee
+            LEFT JOIN lead_logs logs ON logs.lead_id = l.id
+            WHERE 
+                DATE(logs.action_date) = CURDATE()
+                GROUP BY 
+            l.id;`
+   
+    return pool.query(query);
   } catch (error) {
     console.error("Error executing fetchAssignedLeadsQuery:", error);
     throw error;

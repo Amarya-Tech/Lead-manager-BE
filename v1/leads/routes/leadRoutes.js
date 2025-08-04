@@ -6,7 +6,8 @@ import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryT
     fetchMatchingCompanyRecords,
     fetchInactiveLead,
     fetchAssignedUnassignedLead,
-    fetchAllDifferentLeadTypesCount} from '../controllers/leadController.js';
+    fetchAllDifferentLeadTypesCount,
+    fetchTodaysFollowupLead} from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 import { authenticateUserAdminSuperAdminSession } from '../../../middlewares/allThreeRoleAuth.js';
@@ -36,6 +37,7 @@ app.post('/insert-lead-comment-data-from-excel/:id', upload.single('file'), auth
 app.get('/matching-company-records', authenticateUserAdminSuperAdminSession,  fetchMatchingCompanyRecords);
 app.post('/fetch-inactive-leads/:id', authenticateUserAdminSuperAdminSession,  fetchInactiveLead);
 app.post('/fetch-assigned-unassigned-leads/:id', authenticateAdminSuperAdminSession,  fetchAssignedUnassignedLead);
+app.post('/fetch-todays-followup-leads/:id', authenticateUserAdminSuperAdminSession,  fetchTodaysFollowupLead);
 app.get('/fetch-lead-type-count/:id', authenticateUserAdminSuperAdminSession,  fetchAllDifferentLeadTypesCount);
 
 

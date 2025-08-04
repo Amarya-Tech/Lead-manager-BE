@@ -86,6 +86,7 @@ export const fetchLogsQuery = (id) => {
                 CONCAT(u.first_name, ' ', u.last_name) AS created_by_name,
                 logs.comment,
                 logs.action,
+                logs.action_date,
                 logs.created_at AS created_date
             FROM lead_logs AS logs
             JOIN users AS u ON u.id = logs.created_by

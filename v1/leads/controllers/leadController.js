@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, fetchPossibleInactiveLeadsQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, searchTermWithUserIdQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, searchTermWithUserIdQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserExistsBasedOnEmailQuery, checkUserIdQuery } from "../../users/model/userQuery.js";
 import { importExcel, importCommentExcel } from "../../../utils/importExcel.js";
 import { addAssigneeToLeadQuery, addCommentToLeadQuery, addCommentToLeadUsingExcelQuery, insertAssigneeActionFromExcelQuery, insertAssigneeDataFromExcelQuery, isAssigneeExistQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
@@ -645,6 +645,24 @@ export const fetchAssignedUnassignedLead = async (req, res, next) => {
         let action = req.body.action; 
 
        const [leads] = await fetchAssignedLeadsQuery(action)
+       
+        return successResponse(res, leads, 'Leads fetched successfully');
+    } catch (error) {  
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchTodaysFollowupLead = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+
+        let user_id = req.params.id;
+
+       const [leads] = await fetchTodaysFollowupLeadsQuery()
        
         return successResponse(res, leads, 'Leads fetched successfully');
     } catch (error) {  
