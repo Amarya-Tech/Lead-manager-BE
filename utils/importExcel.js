@@ -28,6 +28,15 @@ function excelChecks (excelData){
     const validStatusValues = ['lead', 'prospect', 'active prospect', 'expired lead', 'customer'];
     const validProductValues = ['transport', 'import', 'export'];
 
+    const statusMapping = {
+        'new lead': 'lead',
+        'lead': 'lead',
+        'prospect': 'prospect',
+        'active prospect': 'active prospect',
+        'expired lead': 'expired lead',
+        'customer': 'customer',
+        };
+
     const transformed = excelData.map(obj => {
         const newObj = {};
         for (const key in obj) {
@@ -38,10 +47,14 @@ function excelChecks (excelData){
         }
 
         const errors = [];
-         if (newObj.status) {
-            newObj.status = String(newObj.status).toLowerCase();
-            if (!validStatusValues.includes(newObj.status)) {
-                errors.push(`Invalid status: "${newObj.status}"`);
+        if (newObj.status) {
+           let status = String(newObj.status).toLowerCase().trim();
+            if (statusMapping[status]) {
+                newObj.status = statusMapping[status];
+            } else if (validStatusValues.includes(status)) {
+                newObj.status = status;
+            } else {
+                errors.push(`Invalid status: "${status}"`);
             }
         }
 
