@@ -2,12 +2,14 @@ import express, { Router } from 'express';
 import multer from 'multer';
 import { addLeadContactVal, addLeadOfcVal, createLeadVal, logOutVal, updateLeadContactVal, updateLeadOfcVal, updateLeadVal } from '../../../utils/validation.js';
 import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryType, fetchLeadDetails, fetchLeadLogDetails, fetchLeadTableDetails, searchTermInLead, 
-    searchTermInLeadsPage, insertDataFromExcel, updateLead, updateLeadContact, updateLeadOffices, insertCompanyCommentDataFromExcel, 
-    fetchMatchingCompanyRecords,
+    searchTermInLeadsPage, insertLeadsDataFromExcel, updateLead, updateLeadContact, updateLeadOffices, insertLeadsCommentDataFromExcel, 
+    fetchMatchingLeadsRecords,
     fetchInactiveLead,
     fetchAssignedUnassignedLead,
     fetchAllDifferentLeadTypesCount,
-    fetchTodaysFollowupLead} from '../controllers/leadController.js';
+    fetchTodaysFollowupLead,
+    createManagingBrandAccount,
+    fetchManagingBrandRecords} from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 import { authenticateUserAdminSuperAdminSession } from '../../../middlewares/allThreeRoleAuth.js';
@@ -32,13 +34,17 @@ app.get('/fetch-lead-log-list/:id', authenticateUserAdminSuperAdminSession, logO
 app.get('/fetch-industry-type', authenticateUserAdminSuperAdminSession,  fetchIndustryType);
 app.get('/search/:id', authenticateUserAdminSuperAdminSession, searchTermInLead);
 app.get('/search-term/:id', authenticateUserAdminSuperAdminSession, searchTermInLeadsPage);
-app.post('/insert-lead-data-from-excel/:id', upload.single('file'), authenticateSuperAdminSession,  insertDataFromExcel); 
-app.post('/insert-lead-comment-data-from-excel/:id', upload.single('file'), authenticateSuperAdminSession,  insertCompanyCommentDataFromExcel); 
-app.get('/matching-company-records', authenticateUserAdminSuperAdminSession,  fetchMatchingCompanyRecords);
+app.post('/insert-lead-data-from-excel/:id', upload.single('file'), authenticateSuperAdminSession,  insertLeadsDataFromExcel); 
+app.post('/insert-lead-comment-data-from-excel/:id', upload.single('file'), authenticateSuperAdminSession,  insertLeadsCommentDataFromExcel); 
+app.get('/matching-company-records', authenticateUserAdminSuperAdminSession,  fetchMatchingLeadsRecords);
 app.post('/fetch-inactive-leads/:id', authenticateUserAdminSuperAdminSession,  fetchInactiveLead);
 app.post('/fetch-assigned-unassigned-leads/:id', authenticateAdminSuperAdminSession,  fetchAssignedUnassignedLead);
 app.post('/fetch-todays-followup-leads/:id', authenticateUserAdminSuperAdminSession,  fetchTodaysFollowupLead);
 app.get('/fetch-lead-type-count/:id', authenticateUserAdminSuperAdminSession,  fetchAllDifferentLeadTypesCount);
+
+
+app.post('/add-company-brand', authenticateUserAdminSuperAdminSession, createManagingBrandAccount);
+app.get('/fetch-company-brands', authenticateUserAdminSuperAdminSession, fetchManagingBrandRecords);
 
 
 app.use("/", router);

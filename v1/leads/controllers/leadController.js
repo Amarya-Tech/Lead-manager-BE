@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, searchLeadForLeadsPageQuery, searchTermQuery, searchTermWithUserIdQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { archiveLeadQuery, checkBrandCompanyIdQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, createManagingBrandQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, fetchManagingBrandsQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, isCompanyBrandExistQuery, searchLeadForLeadsPageQuery, searchTermQuery, searchTermWithUserIdQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserExistsBasedOnEmailQuery, checkUserIdQuery } from "../../users/model/userQuery.js";
 import { importExcel, importCommentExcel } from "../../../utils/importExcel.js";
 import { addAssigneeToLeadQuery, addCommentToLeadQuery, addCommentToLeadUsingExcelQuery, insertAssigneeActionFromExcelQuery, insertAssigneeDataFromExcelQuery, isAssigneeExistQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
@@ -19,15 +19,22 @@ export const createLead = async (req, res, next) => {
         }
         let id = uuidv4();
         let log_id = uuidv4();
-        let { company_name, product, industry_type, export_value, insured_amount } = req.body;
+        let { company_name, product, industry_type, export_value, insured_amount, parent_company_id } = req.body;
         let user_id = req.params.id;
         company_name = toTitleCase(company_name);
         product = product ? toTitleCase(product) : product;
         const [isUserExist] = await checkUserIdQuery([user_id]);
 
+        const [company_data] = await checkBrandCompanyIdQuery([parent_company_id])
+
+        if(company_data.length == 0){
+            return notFoundResponse(res, [], 'Managing Brand does not exist');
+        }
+
         const [lead_data] = await createLeadQuery([
             id,
             company_name,
+            parent_company_id,
             product,
             industry_type,
             export_value,
@@ -49,6 +56,29 @@ export const createLead = async (req, res, next) => {
         return internalServerErrorResponse(res, error);
     }
 };
+
+export const updateLead = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        const id = req.params.lead_id;
+        let table = 'leads';
+
+        const condition = {
+            id: id,
+        };
+        const req_data = req.body;
+
+        let query_values = await createDynamicUpdateQuery(table, condition, req_data)
+        await updateLeadQuery(query_values.updateQuery, query_values.updateValues);
+        return successResponse(res, 'Lead data updated successfully.');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+}
 
 export const addLeadOffices = async (req, res, next) => {
     try {
@@ -80,29 +110,6 @@ export const addLeadOffices = async (req, res, next) => {
         return internalServerErrorResponse(res, error);
     }
 };
-
-export const updateLead = async (req, res, next) => {
-    try {
-        const errors = validationResult(req);
-
-        if (!errors.isEmpty()) {
-            return errorResponse(res, errors.array(), "")
-        }
-        const id = req.params.lead_id;
-        let table = 'leads';
-
-        const condition = {
-            id: id,
-        };
-        const req_data = req.body;
-
-        let query_values = await createDynamicUpdateQuery(table, condition, req_data)
-        await updateLeadQuery(query_values.updateQuery, query_values.updateValues);
-        return successResponse(res, 'Lead data updated successfully.');
-    } catch (error) {
-        return internalServerErrorResponse(res, error);
-    }
-}
 
 export const updateLeadOffices = async (req, res, next) => {
     try {
@@ -211,15 +218,26 @@ export const fetchLeadTableDetails = async (req, res, next) => {
         }
         let data;
         const user_id = req.params.id
+        let company_id = req.query.company_id;
+        if (!company_id || company_id === 'null' || company_id === 'undefined') {
+            company_id = null;
+        }
         const [isUserExist] = await checkUserIdQuery([user_id]);
-         if(isUserExist.length === 0){
+        if(isUserExist.length === 0){
             return notFoundResponse(res, [], 'User not found');
         }
 
+        if (company_id) {
+            const [company_data] = await checkBrandCompanyIdQuery([company_id]);
+            if (company_data.length === 0) {
+                return notFoundResponse(res, [], 'Managing Brand does not exist');
+            }
+        }
+
         if (isUserExist[0].role === 'admin' || isUserExist[0].role === 'super_admin') {
-            [data] = await fetchLeadTableListQuery();
+            [data] = await fetchLeadTableListQuery(company_id);
         } else {
-            [data] = await fetchLeadTableListUserQuery([user_id, user_id]);
+            [data] = await fetchLeadTableListUserQuery(user_id, company_id);
         }
 
         return successResponse(res, data, 'Lead table data fetched Successfully');
@@ -254,13 +272,24 @@ export const fetchLeadLogDetails = async (req, res, next) => {
         let data;
         let is_admin = false;
         const user_id = req.params.id
+        let company_id = req.query.company_id;
+        if (!company_id || company_id === 'null' || company_id === 'undefined') {
+            company_id = null;
+        }
         const [isUserExist] = await checkUserIdQuery([user_id]);
 
         if (isUserExist[0].role == "admin" || isUserExist[0].role == "super_admin") {
             is_admin = true
         }
 
-        [data] = await fetchLeadListWithLastContactedQuery(is_admin, user_id);
+        if (company_id) {
+            const [company_data] = await checkBrandCompanyIdQuery([company_id]);
+            if (company_data.length === 0) {
+                return notFoundResponse(res, [], 'Managing Brand does not exist');
+            }
+        }
+
+        [data] = await fetchLeadListWithLastContactedQuery(is_admin, user_id, company_id);
 
         return successResponse(res, data, 'Lead table data fetched Successfully');
     } catch (error) {
@@ -350,7 +379,7 @@ export const searchTermInLeadsPage = async (req, res, next) => {
     }
 };
 
-export const insertDataFromExcel = async (req, res, next) => {
+export const insertLeadsDataFromExcel = async (req, res, next) => {
     try {
         const errors = validationResult(req);
 
@@ -502,7 +531,7 @@ export const insertDataFromExcel = async (req, res, next) => {
     }
 };
 
-export const insertCompanyCommentDataFromExcel = async (req, res, next) => {
+export const insertLeadsCommentDataFromExcel = async (req, res, next) => {
     try {
         const errors = validationResult(req);
 
@@ -580,7 +609,7 @@ export const insertCompanyCommentDataFromExcel = async (req, res, next) => {
     }
 };
 
-export const fetchMatchingCompanyRecords = async (req, res, next) => {
+export const fetchMatchingLeadsRecords = async (req, res, next) => {
     try {
         const errors = validationResult(req);
 
@@ -689,6 +718,53 @@ export const fetchAllDifferentLeadTypesCount = async (req, res, next) => {
        
         return successResponse(res, leads, 'Leads fetched successfully');
     } catch (error) {  
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const createManagingBrandAccount = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        let id = uuidv4();
+        let { company_name } = req.body;
+        company_name = toTitleCase(company_name);
+
+        const [isCompanyExist] = await isCompanyBrandExistQuery([company_name]);
+
+        if (isCompanyExist.length > 0){
+            return minorErrorResponse(res, '', "Managing Brand with same name exists")
+        }
+
+        const [company_data] = await createManagingBrandQuery([
+            id,
+            company_name
+        ]);
+
+        return successResponse(res, { "parent_company_id": id, "brand_name" : company_name }, 'Brand Added Successfully');
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
+    }
+};
+
+export const fetchManagingBrandRecords = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+
+        let [data1] = await fetchManagingBrandsQuery();
+
+        if(data1.length == 0){
+            return notFoundResponse(res, [], 'No Brands exist');
+        }
+        return successResponse(res, data1, 'Managing brands fetched successfully');
+    } catch (error) {
         return internalServerErrorResponse(res, error);
     }
 };

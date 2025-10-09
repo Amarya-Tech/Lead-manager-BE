@@ -7,12 +7,13 @@ export const createLeadQuery = async (array)=> {
         let query = `INSERT INTO leads (
             id,
             company_name,
+            parent_company_id,
             product,
             industry_type,
             export_value,
             insured_amount,
             created_by
-        ) VALUES (?,?,?,?,?,?,?)`
+        ) VALUES (?,?,?,?,?,?,?,?)`
 
         const [insertResult] = await pool.query(query, array);
 
@@ -82,48 +83,74 @@ export const archiveLeadQuery = (array) => {
     }
 }
 
-export const fetchLeadTableListQuery = () => {
-    try{
-        let query = `SELECT 
-                l.id, 
-                l.company_name, 
-                l.product, 
-                l.industry_type, 
-                l.status, 
-                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
-                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
-            FROM leads l 
-            LEFT JOIN users u 
-                ON u.id = l.assignee
-            WHERE l.is_archived = FALSE 
-            ORDER BY l.created_at DESC;
-`
-        return pool.query(query);
+export const fetchLeadTableListQuery = (parentCompanyId = null) => {
+    try {
+        let query = `
+      SELECT 
+        l.id, 
+        l.company_name, 
+        l.product, 
+        l.industry_type, 
+        l.status, 
+        DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+        CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
+        c.parent_company_name AS parent_company_name
+      FROM leads l 
+      LEFT JOIN users u ON u.id = l.assignee
+      LEFT JOIN companies AS c ON c.id = l.parent_company_id
+      WHERE l.is_archived = FALSE
+    `;
+
+        const params = [];
+
+        if (parentCompanyId) {
+            query += ` AND l.parent_company_id = ?`;
+            params.push(parentCompanyId);
+        }
+
+        query += ` ORDER BY l.created_at DESC;`;
+
+        return pool.query(query, params);
     } catch (error) {
         console.error("Error executing fetchLeadTableListQuery:", error);
         throw error;
     }
-}
+};
 
-export const fetchLeadTableListUserQuery = (array) => {
-    try{
-        let query = `SELECT l.id, 
-                l.company_name, 
-                l.product, 
-                l.industry_type, 
-                l.status, 
-                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,  
-                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date
-            FROM leads l
-            LEFT JOIN users AS u ON u.id = ?
-            WHERE l.is_archived = FALSE AND l.assignee = ?
-            ORDER BY l.created_at DESC;`
-        return pool.query(query, array);
+export const fetchLeadTableListUserQuery = (userId, parentCompanyId = null) => {
+    try {
+        let query = `
+      SELECT 
+        l.id, 
+        l.company_name, 
+        l.product, 
+        l.industry_type, 
+        l.status, 
+        CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,  
+        DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+        c.parent_company_name AS parent_company_name
+      FROM leads l
+      LEFT JOIN users AS u ON u.id = l.assignee
+      LEFT JOIN companies AS c ON c.id = l.parent_company_id
+      WHERE l.is_archived = FALSE 
+        AND l.assignee = ?
+    `;
+
+        const params = [userId];
+
+        if (parentCompanyId) {
+            query += ` AND l.parent_company_id = ?`;
+            params.push(parentCompanyId);
+        }
+
+        query += ` ORDER BY l.created_at DESC;`;
+
+        return pool.query(query, params);
     } catch (error) {
-        console.error("Error executing fetchLeadTableListQuery:", error);
+        console.error("Error executing fetchLeadTableListUserQuery:", error);
         throw error;
-    } 
-}
+    }
+};
 
 export const fetchLeadDetailQuery = (array) => {
     try{
@@ -140,7 +167,8 @@ export const fetchLeadDetailQuery = (array) => {
                     CONCAT(u.first_name, ' ', u.last_name) AS assigned_person, 
                     DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
                     COALESCE(office_data.office_details, JSON_ARRAY()) AS office_details,
-                    COALESCE(contact_data.contact_details, JSON_ARRAY()) AS contact_details
+                    COALESCE(contact_data.contact_details, JSON_ARRAY()) AS contact_details,
+                    c.parent_company_name AS parent_company_name
                 FROM leads AS l
 
                 LEFT JOIN (
@@ -178,6 +206,7 @@ export const fetchLeadDetailQuery = (array) => {
                 ) AS contact_data ON contact_data.lead_id = l.id
 
                 LEFT JOIN users AS u ON u.id = l.assignee
+                LEFT JOIN companies AS c ON c.id = l.parent_company_id
 
                 WHERE l.is_archived = FALSE 
                 AND l.id = ?;
@@ -190,7 +219,7 @@ export const fetchLeadDetailQuery = (array) => {
     }
 }
 
-export const fetchLeadListWithLastContactedQuery = (is_admin, user_id) => {
+export const fetchLeadListWithLastContactedQuery = (is_admin, user_id, parent_company_id = null) => {
     try {
         const queryParams = [];
 
@@ -204,17 +233,24 @@ export const fetchLeadListWithLastContactedQuery = (is_admin, user_id) => {
                     l.industry_type,
                     l.status,
                     logs.comment AS latest_comment,
+                    c.parent_company_name AS parent_company_name,
                     DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date,
                     ROW_NUMBER() OVER (PARTITION BY l.id ORDER BY logs.created_at DESC) AS rn
                 FROM leads AS l
                 LEFT JOIN lead_logs AS logs 
                     ON logs.lead_id = l.id
+                LEFT JOIN companies AS c ON c.id = l.parent_company_id
                 WHERE l.is_archived = FALSE
         `;
 
         if (!is_admin) {
             query += ` AND l.assignee = ?`;
             queryParams.push(user_id);
+        }
+
+        if (parent_company_id) {
+            query += ` AND l.parent_company_id = ?`;
+            queryParams.push(parent_company_id);
         }
 
         query += `
@@ -273,16 +309,15 @@ export const searchTermQuery = (searchTerm) => {
         FROM leads
         LEFT JOIN users AS u ON u.id = leads.assignee
         WHERE (
-            LOWER(company_name) LIKE LOWER(?) 
-            OR LOWER(industry_type) LIKE LOWER(?) 
-            OR LOWER(product) LIKE LOWER(?)
-            OR LOWER(u.first_name) LIKE LOWER(?)
-            OR LOWER(u.last_name) LIKE LOWER(?)
+            LOWER(leads.company_name) LIKE LOWER(?) 
+            OR LOWER(leads.industry_type) LIKE LOWER(?) 
+            OR LOWER(leads.product) LIKE LOWER(?)
+            OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE LOWER(?)
         )
-        AND is_archived = FALSE;
+        AND leads.is_archived = FALSE;
     `;
     const value = `%${searchTerm.toLowerCase()}%`;
-    const values = [value, value, value, value, value]; 
+    const values = [value, value, value, value, value, value]; 
     return pool.query(query, values);
   } catch (error) {
     console.error("Error executing searchTermQuery:", error);
@@ -749,3 +784,51 @@ export const fetchTodaysFollowupLeadsQuery = () => {
     throw error;
   }
 };
+
+export const checkBrandCompanyIdQuery = (array) => {
+  try {
+    const query = `
+     SELECT id, parent_company_name FROM companies WHERE id = ?
+    `;
+    return pool.query(query, array);
+  } catch (error) {
+    console.error("Error executing checkBrandCompanyIdQuery:", error);
+    throw error;
+  }
+};
+
+export const fetchManagingBrandsQuery = () => {
+  try {
+    const query = `SELECT id, parent_company_name FROM companies`;
+    return pool.query(query);
+  } catch (error) {
+    console.error("Error executing fetchManagingBrandsQuery:", error);
+    throw error;
+  }
+};
+
+export const isCompanyBrandExistQuery = (array) => {
+  try {
+    const query = `
+     SELECT id, parent_company_name FROM companies WHERE parent_company_name = ?
+    `;
+    return pool.query(query, array);
+  } catch (error) {
+    console.error("Error executing isCompanyBrandExistQuery:", error);
+    throw error;
+  }
+};
+
+export const createManagingBrandQuery = async (array)=> {
+    try {
+        let query = `INSERT INTO companies (
+            id,
+            parent_company_name
+        ) VALUES (?,?)`
+
+        return pool.query(query, array);
+    } catch (error) {
+        console.error("Error executing createManagingBrandQuery:", error);
+        throw error;
+    }
+}
