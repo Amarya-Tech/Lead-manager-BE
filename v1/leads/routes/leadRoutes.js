@@ -32,8 +32,8 @@ app.get('/fetch-lead-table-detail/:id', authenticateUserAdminSuperAdminSession, 
 app.get('/get-lead-detail/:lead_id', authenticateUserAdminSuperAdminSession, updateLeadVal,  fetchLeadDetails);
 app.get('/fetch-lead-log-list/:id', authenticateUserAdminSuperAdminSession, logOutVal, fetchLeadLogDetails);
 app.get('/fetch-industry-type', authenticateUserAdminSuperAdminSession,  fetchIndustryType);
-app.get('/search/:id', authenticateUserAdminSuperAdminSession, searchTermInLead);
-app.get('/search-term/:id', authenticateUserAdminSuperAdminSession, searchTermInLeadsPage);
+app.post('/search/:id', authenticateUserAdminSuperAdminSession, searchTermInLead);
+app.post('/search-term/:id', authenticateUserAdminSuperAdminSession, searchTermInLeadsPage);
 app.post('/insert-lead-data-from-excel/:id', upload.single('file'), authenticateSuperAdminSession,  insertLeadsDataFromExcel); 
 app.post('/insert-lead-comment-data-from-excel/:id', upload.single('file'), authenticateSuperAdminSession,  insertLeadsCommentDataFromExcel); 
 app.get('/matching-company-records', authenticateUserAdminSuperAdminSession,  fetchMatchingLeadsRecords);

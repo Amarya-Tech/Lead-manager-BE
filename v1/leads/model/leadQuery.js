@@ -295,114 +295,219 @@ export const fetchLeadIndustryQuery = () => {
   }
 };
 
-export const searchTermQuery = (searchTerm) => {
+export const advancedSearchQuery = (filters = {}) => {
   try {
-    const query = `
-            SELECT 
-            leads.id, 
-            leads.company_name, 
-            leads.product, 
-            leads.industry_type, 
-            leads.status, 
-            CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
-            DATE_FORMAT(leads.created_at, '%Y-%m-%d') AS created_date 
-        FROM leads
-        LEFT JOIN users AS u ON u.id = leads.assignee
-        WHERE (
-            LOWER(leads.company_name) LIKE LOWER(?) 
-            OR LOWER(leads.industry_type) LIKE LOWER(?) 
-            OR LOWER(leads.product) LIKE LOWER(?)
-            OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE LOWER(?)
-        )
-        AND leads.is_archived = FALSE;
+    let query = `
+      SELECT 
+        leads.id, 
+        leads.company_name, 
+        leads.product, 
+        leads.industry_type, 
+        leads.status, 
+        CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
+        c.parent_company_name AS parent_company_name,
+        DATE_FORMAT(leads.created_at, '%Y-%m-%d') AS created_date 
+      FROM leads
+      LEFT JOIN users AS u ON u.id = leads.assignee
+      LEFT JOIN companies AS c ON c.id = leads.parent_company_id
+      WHERE leads.is_archived = FALSE
     `;
-    const value = `%${searchTerm.toLowerCase()}%`;
-    const values = [value, value, value, value, value, value]; 
-    return pool.query(query, values);
-  } catch (error) {
-    console.error("Error executing searchTermQuery:", error);
-    throw error;
-  }
-};
 
-export const searchTermWithUserIdQuery = (searchTerm, userId) => {
-  try {
-    const user_id= userId
-    const query = `
-            SELECT 
-            leads.id, 
-            leads.company_name, 
-            leads.product, 
-            leads.industry_type, 
-            leads.status, 
-            CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
-            DATE_FORMAT(leads.created_at, '%Y-%m-%d') AS created_date 
-        FROM leads 
-        LEFT JOIN users AS u ON u.id = leads.assignee
-        WHERE (
-            LOWER(company_name) LIKE LOWER(?) 
-            OR LOWER(industry_type) LIKE LOWER(?) 
-            OR LOWER(product) LIKE LOWER(?)
-            OR LOWER(u.first_name) LIKE LOWER(?)    
-            OR LOWER(u.last_name) LIKE LOWER(?)
-        )
-        AND is_archived = FALSE;
-    `;
-    const value = `%${searchTerm.toLowerCase()}%`;
-    const values = [user_id, value, value, value, value, value]; 
-    return pool.query(query, values);
-  } catch (error) {
-    console.error("Error executing searchTermQuery:", error);
-    throw error;
-  }
-};
+    const values = [];
 
-export const searchLeadForLeadsPageQuery = (searchTerm, is_admin, user_id) => {
-    try {
-        const queryParams = [];
-
-        let query = `
-            SELECT *
-            FROM (
-                SELECT 
-                    l.id AS id,
-                    l.company_name,
-                    l.product,
-                    l.industry_type,
-                    l.status,
-                    logs.comment AS latest_comment,
-                    DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date,
-                    ROW_NUMBER() OVER (PARTITION BY l.id ORDER BY logs.created_at DESC) AS rn
-                FROM leads AS l
-                LEFT JOIN lead_logs AS logs 
-                    ON logs.lead_id = l.id
-                WHERE (
-                    LOWER(company_name) LIKE LOWER(?) 
-                    OR LOWER(industry_type) LIKE LOWER(?) 
-                    OR LOWER(product) LIKE LOWER(?)
-                ) AND l.is_archived = FALSE
-        `;
-
-        const value = `%${searchTerm.toLowerCase()}%`;
-        queryParams.push(value)
-        queryParams.push(value)
-        queryParams.push(value)
-        if (!is_admin) {
-            query += ` AND l.assignee = ?`;
-            queryParams.push(user_id);
-        }
-
-        query += `
-            ) AS ranked
-            WHERE rn = 1
-            ORDER BY latest_comment_date DESC
-        `;
-
-        return pool.query(query, queryParams);
-    } catch (error) {
-        console.error("Error executing searchLeadForLeadsPageQuery:", error);
-        throw error;
+    // Brand filter
+    if (filters.brandId && filters.brandId != "") {
+      query += ` AND c.id = ? `;
+      values.push(filters.brandId);
     }
+
+    // Company name
+    if (filters.companyName && filters.companyName != "") {
+      query += ` AND LOWER(leads.company_name) LIKE LOWER(?) `;
+      values.push(`%${filters.companyName.toLowerCase()}%`);
+    }
+
+    // Industry type
+    if (filters.industryType && filters.industryType != "") {
+      query += ` AND LOWER(leads.industry_type) LIKE LOWER(?) `;
+      values.push(`%${filters.industryType.toLowerCase()}%`);
+    }
+
+    // Product
+    if (filters.product && filters.product != "") {
+      query += ` AND LOWER(leads.product) LIKE LOWER(?) `;
+      values.push(`%${filters.product.toLowerCase()}%`);
+    }
+
+    // Assigned person
+    if (filters.assignedPerson && filters.assignedPerson != "") {
+      query += ` AND LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE LOWER(?) `;
+      values.push(`%${filters.assignedPerson.toLowerCase()}%`);
+    }
+
+    // Generic searchTerm fallback (like Gmail "search all")
+    if (filters.searchTerm && filters.searchTerm != "") {
+      query += `
+        AND (
+          LOWER(leads.company_name) LIKE LOWER(?) 
+          OR LOWER(leads.industry_type) LIKE LOWER(?) 
+          OR LOWER(leads.product) LIKE LOWER(?) 
+          OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE LOWER(?)
+        )
+      `;
+      const value = `%${filters.searchTerm.toLowerCase()}%`;
+      values.push(value, value, value, value);
+    }
+
+    return pool.query(query, values);
+  } catch (error) {
+    console.error("Error executing advancedSearchQuery:", error);
+    throw error;
+  }
+};
+
+export const advanceSearchWithUserIdQuery = (filters = {}, userId) => {
+  try {
+    let query = `
+      SELECT 
+        leads.id, 
+        leads.company_name, 
+        leads.product, 
+        leads.industry_type, 
+        leads.status, 
+        CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
+        c.parent_company_name AS parent_company_name,
+        DATE_FORMAT(leads.created_at, '%Y-%m-%d') AS created_date 
+      FROM leads 
+      LEFT JOIN users AS u ON u.id = leads.assignee
+      LEFT JOIN companies AS c ON c.id = leads.parent_company_id
+      WHERE leads.is_archived = FALSE
+        AND leads.assignee = ?
+    `;
+
+    const values = [userId];
+
+    // Brand filter
+    if (filters.brandId && filters.brandId != "") {
+      query += ` AND c.id = ? `;
+      values.push(filters.brandId);
+    }
+
+    // Company name
+    if (filters.companyName && filters.companyName != "") {
+      query += ` AND LOWER(leads.company_name) LIKE LOWER(?) `;
+      values.push(`%${filters.companyName.toLowerCase()}%`);
+    }
+
+    // Industry type
+    if (filters.industryType && filters.industryType != "") {
+      query += ` AND LOWER(leads.industry_type) LIKE LOWER(?) `;
+      values.push(`%${filters.industryType.toLowerCase()}%`);
+    }
+
+    // Product
+    if (filters.product && filters.product != "") {
+      query += ` AND LOWER(leads.product) LIKE LOWER(?) `;
+      values.push(`%${filters.product.toLowerCase()}%`);
+    }
+
+    // Generic searchTerm fallback (like Gmail "search all")
+    if (filters.searchTerm && filters.searchTerm != "") {
+      query += `
+        AND (
+          LOWER(leads.company_name) LIKE LOWER(?) 
+          OR LOWER(leads.industry_type) LIKE LOWER(?) 
+          OR LOWER(leads.product) LIKE LOWER(?) 
+          OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE LOWER(?)
+        )
+      `;
+      const value = `%${filters.searchTerm.toLowerCase()}%`;
+      values.push(value, value, value, value);
+    }
+
+    return pool.query(query, values);
+  } catch (error) {
+    console.error("Error executing searchTermWithUserIdQuery:", error);
+    throw error;
+  }
+};
+
+export const searchLeadForLeadsPageQuery = (filters = {}, is_admin, user_id) => {
+  try {
+    const queryParams = [];
+
+    let query = `
+      SELECT *
+      FROM (
+          SELECT 
+              l.id AS id,
+              l.company_name,
+              l.product,
+              l.industry_type,
+              l.status,
+              logs.comment AS latest_comment,
+              DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date,
+              c.parent_company_name AS parent_company_name,
+              ROW_NUMBER() OVER (PARTITION BY l.id ORDER BY logs.created_at DESC) AS rn
+          FROM leads AS l
+          LEFT JOIN lead_logs AS logs ON logs.lead_id = l.id
+          LEFT JOIN companies AS c ON c.id = l.parent_company_id
+          WHERE l.is_archived = FALSE
+    `;
+
+     // Brand filter
+    if (filters.brandId && filters.brandId != "") {
+      query += ` AND c.id = ? `;
+      queryParams.push(filters.brandId);
+    }
+
+    // Company name
+    if (filters.companyName && filters.companyName != "") {
+      query += ` AND LOWER(l.company_name) LIKE LOWER(?) `;
+      queryParams.push(`%${filters.companyName.toLowerCase()}%`);
+    }
+
+    // Industry type
+    if (filters.industryType && filters.industryType != "") {
+      query += ` AND LOWER(l.industry_type) LIKE LOWER(?) `;
+      queryParams.push(`%${filters.industryType.toLowerCase()}%`);
+    }
+
+    // Product
+    if (filters.product && filters.product != "") {
+      query += ` AND LOWER(l.product) LIKE LOWER(?) `;
+      queryParams.push(`%${filters.product.toLowerCase()}%`);
+    }
+
+    // Generic searchTerm fallback (like Gmail "search all")
+    if (filters.searchTerm && filters.searchTerm != "") {
+      query += `
+        AND (
+          LOWER(l.company_name) LIKE LOWER(?) 
+          OR LOWER(l.industry_type) LIKE LOWER(?) 
+          OR LOWER(l.product) LIKE LOWER(?)
+        )
+      `;
+      const value = `%${filters.searchTerm.toLowerCase()}%`;
+      queryParams.push(value, value, value);
+    }
+
+    if (!is_admin) {
+      query += ` AND l.assignee = ? `;
+      queryParams.push(user_id);
+    }
+
+    query += `
+      ) AS ranked
+      WHERE rn = 1
+      ORDER BY latest_comment_date DESC
+    `;
+
+    return pool.query(query, queryParams);
+  } catch (error) {
+    console.error("Error executing searchLeadForLeadsPageQuery:", error);
+    throw error;
+  }
 };
 
 export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) => {

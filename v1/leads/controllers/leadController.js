@@ -3,7 +3,12 @@ import dotenv from "dotenv"
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
-import { archiveLeadQuery, checkBrandCompanyIdQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, createManagingBrandQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, fetchLeadTableListUserQuery, fetchManagingBrandsQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, isCompanyBrandExistQuery, searchLeadForLeadsPageQuery, searchTermQuery, searchTermWithUserIdQuery, updateLeadQuery } from "../model/leadQuery.js";
+import { advancedSearchQuery, advanceSearchWithUserIdQuery, archiveLeadQuery, checkBrandCompanyIdQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, 
+    createManagingBrandQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, 
+    fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, 
+    fetchLeadTableListUserQuery, fetchManagingBrandsQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, 
+    insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, 
+    isCompanyBrandExistQuery, searchLeadForLeadsPageQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserExistsBasedOnEmailQuery, checkUserIdQuery } from "../../users/model/userQuery.js";
 import { importExcel, importCommentExcel } from "../../../utils/importExcel.js";
 import { addAssigneeToLeadQuery, addCommentToLeadQuery, addCommentToLeadUsingExcelQuery, insertAssigneeActionFromExcelQuery, insertAssigneeDataFromExcelQuery, isAssigneeExistQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
@@ -339,14 +344,14 @@ export const searchTermInLead = async (req, res, next) => {
             return errorResponse(res, errors.array(), "")
         }
         let data;
-        const term = req.query.term
+        const filters = req.body
         const user_id = req.params.id
         const [isUserExist] = await checkUserIdQuery([user_id]);
 
         if (isUserExist[0].role === 'admin' || isUserExist[0].role === 'super_admin') {
-            [data] = await searchTermQuery(term);
+            [data] = await advancedSearchQuery(filters);
         } else {
-            [data] = await searchTermWithUserIdQuery(term, user_id);
+            [data] = await advanceSearchWithUserIdQuery(filters, user_id);
         }
         return successResponse(res, data, 'Leads searched successfully');
     } catch (error) {
@@ -362,7 +367,7 @@ export const searchTermInLeadsPage = async (req, res, next) => {
             return errorResponse(res, errors.array(), "")
         }
 
-        const term = req.query.term
+        const filters = req.body
         let is_admin = false;
         const user_id = req.params.id
         const [isUserExist] = await checkUserIdQuery([user_id]);
@@ -371,7 +376,7 @@ export const searchTermInLeadsPage = async (req, res, next) => {
             is_admin = true
         }
 
-        let [data1] = await searchLeadForLeadsPageQuery(term, is_admin, user_id);
+        let [data1] = await searchLeadForLeadsPageQuery(filters, is_admin, user_id);
 
         return successResponse(res, data1, 'Leads searched successfully');
     } catch (error) {
