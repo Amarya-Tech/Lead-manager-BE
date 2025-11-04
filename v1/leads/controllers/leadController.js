@@ -402,7 +402,18 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
         let excelData = importExcel(fileBuffer)
 
         let isAssignee;
+        let parent_company_data;
         for (let i = 0; i < excelData.length; i++) {
+               if (!Array.isArray(excelData[i].validation_error)) {
+                    if (typeof excelData[i].validation_error === 'string' && excelData[i].validation_error.trim() !== '') {
+                        excelData[i].validation_error = excelData[i].validation_error
+                            .split(';')
+                            .map(e => e.trim())
+                            .filter(Boolean);
+                    } else {
+                        excelData[i].validation_error = [];
+                    }
+                }
             const [duplicates] = await fetchCompanyNameDuplicatesQuery([excelData[i].company_name]);
             if(excelData[i].assignee != ''){
                 [isAssignee] = await checkUserExistsBasedOnEmailQuery([excelData[i].assignee]);
@@ -411,8 +422,9 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
                 }
             }
 
-            if (!Array.isArray(excelData[i].validation_error)) {
-                excelData[i].validation_error = [];
+            [parent_company_data] = await isCompanyBrandExistQuery([excelData[i].managing_brand])
+            if(parent_company_data.length == 0){
+                excelData[i].validation_error.push("managing brand does not exists")
             }
             if(duplicates && duplicates.length >0 && excelData[i].company_name == duplicates[0].company_name){
                 excelData[i].validation_error.push("company_name already exists")
@@ -427,6 +439,7 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
             newObj['company_name'] = obj['company_name']
             newObj['industry_type'] = obj['industry_type']
             newObj['product'] = obj['product']
+            newObj['parent_company_id'] = parent_company_data[0].id
             newObj['suitable_product'] = obj['suitable_product']
             newObj['status'] = obj['status'] || 'lead'
             return newObj
@@ -530,7 +543,7 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
             const data7 = await insertAssigneeActionFromExcelQuery(commentActions);
         }
 
-        return successResponse(res, data1, 'Industry added successfully');
+        return successResponse(res, data1, 'Leads added successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
     }

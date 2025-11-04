@@ -15,6 +15,7 @@ function excelChecks (excelData){
     const requiredFields = [
         'company_name',
         'industry_type',
+        'managing_brand',
         'address',
         'phone_number',
         'contact_person',
@@ -65,12 +66,15 @@ function excelChecks (excelData){
             }
         }
 
-
+ 
         if (!newObj.company_name || newObj.company_name.trim() === '') {
             errors.push("company_name is required");
         }
         if (!newObj.industry_type || newObj.industry_type.trim() === '') {
             errors.push("industry_type is required");
+        }
+        if (!newObj.managing_brand || newObj.managing_brand.trim() === '') {
+            errors.push("managing_brand is required");
         }
         if (!newObj.address || newObj.address.trim() === '') {
             errors.push("address is required");

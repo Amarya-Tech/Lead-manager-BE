@@ -517,13 +517,14 @@ export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) 
       item.company_name,
       item.product,
       item.industry_type,
+      item.parent_company_id,
       item.suitable_product,
       created_by,
       item.status
     ]);
 
     const insertQuery = `
-      INSERT INTO leads (id, company_name, product, industry_type, suitable_product, created_by, status)
+      INSERT INTO leads (id, company_name, product, industry_type, parent_company_id, suitable_product, created_by, status)
       VALUES ?
     `;
 

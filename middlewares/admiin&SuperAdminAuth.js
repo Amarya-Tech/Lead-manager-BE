@@ -39,10 +39,10 @@ export const authenticateAdminSuperAdminSession  = async (req, res, next) => {
             } else {
                 decoded = verifiedDetails;
                 if (String(decoded.user_id) === String(decrypted_user_id)) {
-                validAccess = true;
-            } else {
-                jwtErrorMessage = 'User ID mismatch. Possible token misuse';
-            }
+                    validAccess = true;
+                } else {
+                    jwtErrorMessage = 'User ID mismatch. Possible token misuse';
+                }
             }
         });
         if (!validAccess) {
