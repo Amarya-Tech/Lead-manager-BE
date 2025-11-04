@@ -82,7 +82,7 @@ function excelChecks (excelData){
         if (newObj.contact_person && !newObj.designation ) {
             errors.push("designation is required");
         }
-        if (newObj.status && !newObj.suitable_product ) {
+        if (newObj.status != 'lead' && !newObj.suitable_product ) {
             errors.push("suitable product is required");
         }
         if (newObj.phone_number){
