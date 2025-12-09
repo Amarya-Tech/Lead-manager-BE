@@ -9,7 +9,8 @@ import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryT
     fetchAllDifferentLeadTypesCount,
     fetchTodaysFollowupLead,
     createManagingBrandAccount,
-    fetchManagingBrandRecords} from '../controllers/leadController.js';
+    fetchManagingBrandRecords,
+    getLeadByBrandname} from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 import { authenticateUserAdminSuperAdminSession } from '../../../middlewares/allThreeRoleAuth.js';
@@ -41,7 +42,7 @@ app.post('/fetch-inactive-leads/:id', authenticateUserAdminSuperAdminSession,  f
 app.post('/fetch-assigned-unassigned-leads/:id', authenticateAdminSuperAdminSession,  fetchAssignedUnassignedLead);
 app.post('/fetch-todays-followup-leads/:id', authenticateUserAdminSuperAdminSession,  fetchTodaysFollowupLead);
 app.get('/fetch-lead-type-count/:id', authenticateUserAdminSuperAdminSession,  fetchAllDifferentLeadTypesCount);
-
+app.get('/export-leads/:id',  authenticateUserAdminSuperAdminSession, logOutVal, getLeadByBrandname)
 
 app.post('/add-company-brand', authenticateUserAdminSuperAdminSession, createManagingBrandAccount);
 app.get('/fetch-company-brands', authenticateUserAdminSuperAdminSession, fetchManagingBrandRecords);

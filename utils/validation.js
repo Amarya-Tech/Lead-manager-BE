@@ -52,14 +52,14 @@ export const addLeadOfcVal = [
     body('city').notEmpty().withMessage('City cannot be empty.').isString().withMessage("City must be a string."),
     body('state').notEmpty().withMessage('State cannot be empty.').isString().withMessage("State must be a string."),
     body('country').notEmpty().withMessage('Country cannot be empty.').isString().withMessage("Country must be a string."),
-    body('postal_code').notEmpty().withMessage('Postal Code cannot be empty.').isInt().withMessage('Postal code should be an integer')
+    body('postal_code').notEmpty().withMessage('Postal Code cannot be empty.').matches(/^[a-zA-Z0-9 ]+$/).withMessage('Postal code must contain only letters , numbers and spaces')
 ]
 
 export const addLeadContactVal = [
     body('lead_id').notEmpty().withMessage('Lead Id cannot be empty.').isUUID().withMessage('Lead Id must be a valid UUID.'),
-    body('name').notEmpty().withMessage('Name cannot be empty.').isString().withMessage("Name must be a string."),
-    body('phone').optional().isInt().withMessage('Phone number should be an integer'),
-    body('alt_phone').optional().isInt().withMessage('Phone number should be an integer'),
+    body('name').optional().isString().withMessage("Name must be a string."),
+    body('phone').optional().isString().matches(/^[0-9+\-() ]+$/).withMessage('Phone number may contain only digits, +, -, (), and spaces'),
+    body('alt_phone').optional().isString().matches(/^[0-9+\-() ]+$/).withMessage('Phone number may contain only digits, +, -, (), and spaces'),
     body('email').optional({ checkFalsy: true })
     .isEmail().withMessage('Invalid email input.'),
 ]

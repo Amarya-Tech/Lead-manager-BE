@@ -5,13 +5,14 @@ import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoun
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
 import { advancedSearchQuery, advanceSearchWithUserIdQuery, archiveLeadQuery, checkBrandCompanyIdQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, 
     createManagingBrandQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, 
-    fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadTableListQuery, 
+    fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadsForCsv, fetchLeadTableListQuery, 
     fetchLeadTableListUserQuery, fetchManagingBrandsQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, 
     insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, 
     isCompanyBrandExistQuery, searchLeadForLeadsPageQuery, updateLeadQuery } from "../model/leadQuery.js";
 import { checkUserExistsBasedOnEmailQuery, checkUserIdQuery } from "../../users/model/userQuery.js";
 import { importExcel, importCommentExcel } from "../../../utils/importExcel.js";
 import { addAssigneeToLeadQuery, addCommentToLeadQuery, addCommentToLeadUsingExcelQuery, insertAssigneeActionFromExcelQuery, insertAssigneeDataFromExcelQuery, isAssigneeExistQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
+import { format } from "@fast-csv/format";
 
 dotenv.config();
 
@@ -546,6 +547,7 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
         return successResponse(res, data1, 'Leads added successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
+
     }
 };
 
@@ -786,3 +788,72 @@ export const fetchManagingBrandRecords = async (req, res, next) => {
         return internalServerErrorResponse(res, error);
     }
 };
+
+export const getLeadByBrandname = async (req , res , next) => {
+    try{
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "")
+        }
+        let data;
+        const user_id = req.params.id
+        let company_id = req.query.company_id;
+        let parent_company_name = req.query.parent_company_name;
+        if (!company_id || company_id === 'null' || company_id === 'undefined') {
+            company_id = null;
+        }
+        const [isUserExist] = await checkUserIdQuery([user_id]);
+        if(isUserExist.length === 0){
+            return notFoundResponse(res, [], 'User not found');
+        }
+
+        if (company_id) {
+            const [company_data] = await checkBrandCompanyIdQuery([company_id]);
+            if (company_data.length === 0) {
+                return notFoundResponse(res, [], 'Managing Brand does not exist');
+            }
+        }
+
+        if (isUserExist[0].role === 'admin' || isUserExist[0].role === 'super_admin') {
+            [data] = await fetchLeadsForCsv(company_id , parent_company_name);
+        } else {
+            [data] = await fetchLeadTableListUserQuery(user_id, company_id);
+        }
+        // Set headers for CSV Download
+        const fileName = company_id 
+        ? `leads_${company_id}.csv` 
+        : `all_leads.csv`;
+
+        res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+        res.setHeader("Content-Type", "text/csv");
+
+        const csvStream = format({ headers: true });
+
+        // Pipe CSV to response
+        csvStream.pipe(res);
+
+        // Custom headings
+        data.forEach(lead => {
+        csvStream.write({
+            "id" : lead.id,
+            "Company Name": lead.company_name,
+            "Product": lead.product ?? "",
+            "Industry Type": lead.industry_type ?? "",
+            "Status": lead.status ?? "",
+            "Created Date": lead.created_date,
+            "Assigned Person": lead.assigned_person ?? "",
+            "Phone Number": lead.phone ?? "",
+            "email": lead.email ?? "",
+            "Designation": lead.designation ?? "",
+            "Managing Brand": lead.parent_company_name ?? "",
+            "Suitable Product" : lead.suitable_product ?? "", 
+            "Address": lead.address ?? ""
+        });
+        });
+
+        csvStream.end();
+    }catch(error){
+        return internalServerErrorResponse(res,error)
+    }
+}

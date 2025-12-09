@@ -83,7 +83,7 @@ export const archiveLeadQuery = (array) => {
     }
 }
 
-export const fetchLeadTableListQuery = (parentCompanyId = null) => {
+export const fetchLeadTableListQuery = (parentCompanyId = null , parent_company_name) => {
     try {
         let query = `
       SELECT 
@@ -106,6 +106,10 @@ export const fetchLeadTableListQuery = (parentCompanyId = null) => {
         if (parentCompanyId) {
             query += ` AND l.parent_company_id = ?`;
             params.push(parentCompanyId);
+        }
+        if(parent_company_name && parent_company_name.toString().toLowerCase() != "All Brands".toLowerCase()){
+          query += ` AND parent_company_name = ?`;
+          params.push(parent_company_name);
         }
 
         query += ` ORDER BY l.created_at DESC;`;
@@ -510,6 +514,7 @@ export const searchLeadForLeadsPageQuery = (filters = {}, is_admin, user_id) => 
   }
 };
 
+
 export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) => {
   try {
     const values = data.map(item => [
@@ -544,6 +549,7 @@ export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) 
     throw error;
   }
 };
+
 
 export const insertOfficeDataFromExcelQuery = (data)=> {
     try {
@@ -938,3 +944,50 @@ export const createManagingBrandQuery = async (array)=> {
         throw error;
     }
 }
+// for exporting the leads in csv form 
+export const fetchLeadsForCsv = async (parentCompanyId = null , parent_company_name) => {
+  try {
+        let query = `
+      SELECT 
+        l.id, 
+        l.company_name,  
+        l.product,  
+        l.industry_type,  
+        l.status, 
+        DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+        CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
+        CONCAT(lo.address ,' ', lo.city , ' ' , lo.postal_code,' ', lo.country) as address,
+        u.phone as phone,
+        l.suitable_product as suitable_product,
+        c.parent_company_name AS parent_company_name,
+        lc.email as email,
+        lc.designation as designation
+      FROM leads l 
+      LEFT JOIN users u ON u.id = l.assignee
+      LEFT JOIN companies AS c ON c.id = l.parent_company_id
+      LEFT JOIN lead_contact as lc on lc.lead_id = l.id
+      LEFT JOIN lead_office as lo on lo.lead_id = l.id
+      WHERE l.is_archived = FALSE
+    `;
+
+        const params = [];
+
+        if (parentCompanyId) {
+            query += ` AND l.parent_company_id = ?`;
+            params.push(parentCompanyId);
+        }
+        if(parent_company_name && parent_company_name.toString().toLowerCase() != "All Brands".toLowerCase()){
+          query += ` AND parent_company_name = ?`;
+          params.push(parent_company_name);
+        }
+
+        query += ` ORDER BY l.created_at DESC;`;
+
+        return pool.query(query, params);
+    } catch (error) {
+        console.error("Error executing fetchLeadTableListQuery:", error);
+        throw error;
+    }
+}
+
+// update lead only for the if the company exits
