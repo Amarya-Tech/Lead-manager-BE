@@ -2,6 +2,18 @@ import pool from "../../../config/db.js"
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from "dotenv"
 
+export const fetchLeadByIdQuery = async (lead) => {
+  try{
+    const query = `
+      SELECt * from leads where id = ?
+    `
+    return await pool.query(query , lead);
+  }catch(error){
+    console.error("Error in executing the fetchLeadByIdQuery" , error);
+    throw error;
+  }
+}
+
 export const createLeadQuery = async (array)=> {
     try {
         let query = `INSERT INTO leads (
@@ -551,6 +563,45 @@ export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) 
 };
 
 
+export const updateCompanyDataQuery = async (companyUpdateData) => {
+    try{
+        const query = `
+        UPDATE leads 
+        SET 
+          company_name = ? ,
+          industry_type = ?,
+          product = ?,
+          parent_company_id = ?,
+          suitable_product = ?,
+          status = ?,
+          updated_at = NOW()
+        where id = ?
+        `;
+        const values = [
+          companyUpdateData.company_name,
+          companyUpdateData.industry_type,
+          companyUpdateData.product,
+          companyUpdateData.parent_company_id,
+          companyUpdateData.suitable_product,
+          companyUpdateData.status,
+          companyUpdateData.id
+        ];
+        const [result] = await pool.query(query , values);
+        // Fetch and return the updated record
+        const fetchQuery = `
+          SELECT * FROM leads WHERE id = ?
+        `;
+
+        const [rows] = await pool.query(fetchQuery, [companyUpdateData.id]);
+
+        return rows;
+    }catch(error){
+        console.error("Error executing the updateCompanyDataQuery");
+        throw error;
+    }
+}
+
+
 export const insertOfficeDataFromExcelQuery = (data)=> {
     try {
         const filteredData = data.filter(item => item.address && item.address.trim() !== "");
@@ -582,6 +633,39 @@ export const insertOfficeDataFromExcelQuery = (data)=> {
         console.error("Error executing insertOfficeDataFromExcelQuery:", error);
         throw error;
     }
+}
+
+export const updateOfficeDataQuery = async (officeUpdateData) => {
+  try{
+    const officeUpdateDataAddress = officeUpdateData.address && officeUpdateData.address.trim()
+    if(officeUpdateDataAddress === ""){
+       console.log("No valid office data to update.");
+            return Promise.resolve([[], null]);
+    }
+
+    let query = `
+      UPDATE lead_office
+      SET
+        address = ?,
+        city = ?,
+        state = ?,
+        country = ?
+      where
+        lead_id = ?`
+    const values = [
+      officeUpdateData.address || null,
+      officeUpdateData.city || null,
+      officeUpdateData.state || null,
+      officeUpdateData.country || null,
+      officeUpdateData.lead_id
+    ]
+
+    return await pool.query(query , values);
+
+  }catch(error){
+    console.error("Error in executing the updateOfficeDataQuery:" , error);
+    throw error;
+  }
 }
 
 export const insertContactDataFromExcelQuery = (data, created_by)=> {
@@ -619,6 +703,39 @@ export const insertContactDataFromExcelQuery = (data, created_by)=> {
     }
 }
 
+export const updateContactDataQuery = async (contactDetailsToAdd, user_id) => {
+  try{
+     const contactPersonInfo = contactDetailsToAdd.name && contactDetailsToAdd.name.trim();
+     if(!contactPersonInfo){
+          console.log("No valid contact data to update.");
+          return Promise.resolve([[], null]);
+     }
+     let query = `UPDATE lead_contact 
+        SET
+            name = ?,
+            designation = ?,
+            phone = ?,
+            email = ?
+        Where
+            lead_id = ?`
+
+      const values = [
+        contactDetailsToAdd.name,
+        contactDetailsToAdd.designation,
+        contactDetailsToAdd.phone,
+        contactDetailsToAdd.email,
+        contactDetailsToAdd.lead_id,
+      ]
+
+      return await pool.query(query , values);
+
+
+  }catch(error){
+    console.error("Error in executing the updateContactDataQuery" , error);
+    throw error;
+  }
+}
+
 export const fetchCompanyIdQuery = (array) => {
   try {
     const query = ` SELECT id FROM leads WHERE company_name = ?`;
@@ -640,6 +757,18 @@ export const fetchCompanyNameDuplicatesQuery = (array) => {
     throw error;
   }
 };
+
+export const fetchCompanyNameDuplicatesForUpdateQuery = (array) => {
+try {
+    const query = `
+     SELECT id, company_name FROM leads WHERE LOWER(company_name) LIKE CONCAT('%', LOWER(?), '%') AND id != ? 
+    `;
+    return pool.query(query, array);
+  } catch (error) {
+    console.error("Error executing fetchCompanyNameDuplicatesQuery:", error);
+    throw error;
+  }
+}
 
 export const fetchInactiveLeadsQuery = (is_admin, user_id) => {
     try{
@@ -955,12 +1084,16 @@ export const fetchLeadsForCsv = async (parentCompanyId = null , parent_company_n
         l.industry_type,  
         l.status, 
         DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
-        CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
-        CONCAT(lo.address ,' ', lo.city , ' ' , lo.postal_code,' ', lo.country) as address,
-        u.phone as phone,
+        u.email AS assigned_person,
+        lo.address as address,
+        lo.city as city,
+        lo.country as country,
+        lo.state as state,
+        lc.phone as phone,
         l.suitable_product as suitable_product,
         c.parent_company_name AS parent_company_name,
         lc.email as email,
+        lc.name as contact_person,  
         lc.designation as designation
       FROM leads l 
       LEFT JOIN users u ON u.id = l.assignee

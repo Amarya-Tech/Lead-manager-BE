@@ -21,6 +21,7 @@ export const isAssigneeExistQuery = (array)=>{
     }
 }
 
+
 export const addAssigneeToLeadQuery = async ([leadId, assigneeId]) => {
   try {
     const query = `
@@ -139,6 +140,26 @@ export const insertAssigneeDataFromExcelQuery = async(data)=> {
         return rows;
     } catch (error) {
         console.error("Error executing insertAssigneeDataFromExcelQuery:", error);
+        throw error;
+    }
+}
+
+export const updateAssigneeDataQuery = async (assigneeUpdateData) => {
+    try{
+        const assigneeId = assigneeUpdateData.assignee_id && assigneeUpdateData.assignee_id.trim();
+        if(!assigneeId){
+            return [];
+        }
+
+        const updateQuery = `
+                UPDATE leads
+                SET assignee = ?
+                WHERE id = ?
+            `;
+        return pool.query(updateQuery, [assigneeUpdateData.assignee_id.trim(), assigneeUpdateData.lead_id]);
+
+    }catch(error){
+        console.error("Error in executing updateAssigneeDataQuery:", error);
         throw error;
     }
 }

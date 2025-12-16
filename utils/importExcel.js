@@ -86,7 +86,7 @@ function excelChecks (excelData){
             errors.push("suitable product is required");
         }
         if (newObj.phone_number){
-            newObj.phone_number = String(newObj.phone_number || "").replace(/\D/g, '');
+            newObj.phone_number = String(newObj.phone_number || "");
         }
 
         newObj.validation_error = errors.length > 0 ? errors.join('; ') : null;

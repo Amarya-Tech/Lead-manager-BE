@@ -4,14 +4,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
 import { advancedSearchQuery, advanceSearchWithUserIdQuery, archiveLeadQuery, checkBrandCompanyIdQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, 
-    createManagingBrandQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, 
-    fetchInactiveLeadsQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadsForCsv, fetchLeadTableListQuery, 
+    createManagingBrandQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesForUpdateQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, 
+    fetchInactiveLeadsQuery, fetchLeadByIdQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadsForCsv, fetchLeadTableListQuery, 
     fetchLeadTableListUserQuery, fetchManagingBrandsQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, 
     insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, 
-    isCompanyBrandExistQuery, searchLeadForLeadsPageQuery, updateLeadQuery } from "../model/leadQuery.js";
+    isCompanyBrandExistQuery, searchLeadForLeadsPageQuery, updateCompanyDataQuery, updateContactDataQuery, updateLeadQuery, 
+    updateOfficeDataQuery} from "../model/leadQuery.js";
 import { checkUserExistsBasedOnEmailQuery, checkUserIdQuery } from "../../users/model/userQuery.js";
 import { importExcel, importCommentExcel } from "../../../utils/importExcel.js";
-import { addAssigneeToLeadQuery, addCommentToLeadQuery, addCommentToLeadUsingExcelQuery, insertAssigneeActionFromExcelQuery, insertAssigneeDataFromExcelQuery, isAssigneeExistQuery, isLeadCommunicationIdExistQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
+import { addAssigneeToLeadQuery, addCommentToLeadQuery, addCommentToLeadUsingExcelQuery, insertAssigneeActionFromExcelQuery, insertAssigneeDataFromExcelQuery, isAssigneeExistQuery, isLeadCommunicationIdExistQuery, updateAssigneeDataQuery } from "../../leadCommunications/model/leadCommunicationQuery.js";
 import { format } from "@fast-csv/format";
 
 dotenv.config();
@@ -392,6 +393,7 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
         if (!errors.isEmpty()) {
             return errorResponse(res, errors.array(), "")
         }
+        
         const fileBuffer = req.file.buffer;
         const user_id = req.params.id;
         const [isUserExist] = await checkUserIdQuery([user_id]);
@@ -400,154 +402,332 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
             return notFoundResponse(res, [], "User not found")
         }
 
-        let excelData = importExcel(fileBuffer)
-
+        let excelData = importExcel(fileBuffer);
+        
+        // Arrays to separate ADD and UPDATE operations
+        const leadsToAdd = [];
+        const leadsToUpdate = [];
+        
         let isAssignee;
         let parent_company_data;
+        
+        // First pass: Validate and separate ADD/UPDATE leads
         for (let i = 0; i < excelData.length; i++) {
-               if (!Array.isArray(excelData[i].validation_error)) {
-                    if (typeof excelData[i].validation_error === 'string' && excelData[i].validation_error.trim() !== '') {
-                        excelData[i].validation_error = excelData[i].validation_error
-                            .split(';')
-                            .map(e => e.trim())
-                            .filter(Boolean);
-                    } else {
-                        excelData[i].validation_error = [];
+            const row = excelData[i];
+            
+            // Initialize validation errors array
+            if (!Array.isArray(row.validation_error)) {
+                if (typeof row.validation_error === 'string' && row.validation_error.trim() !== '') {
+                    row.validation_error = row.validation_error
+                        .split(';')
+                        .map(e => e.trim())
+                        .filter(Boolean);
+                } else {
+                    row.validation_error = [];
+                }
+            }
+            
+            // Check for ID to determine ADD or UPDATE flow
+            if (row.id && row.id !== '') {
+                // UPDATE flow - check if lead exists
+                const [existingLead] = await fetchLeadByIdQuery([row.id]);
+                if (existingLead.length === 0) {
+                    row.validation_error.push("Lead with this ID does not exist");
+                } else {
+                    leadsToUpdate.push(row);
+                }
+            } else {
+                // ADD flow
+                leadsToAdd.push(row);
+            }
+            
+            // Common validations for both ADD and UPDATE
+            
+            // Validate assignee if provided
+            if (row.assignee && row.assignee != '') {
+                [isAssignee] = await checkUserExistsBasedOnEmailQuery([row.assignee]);
+                if (isAssignee.length == 0) {
+                    row.validation_error.push("given assignee did not exist");
+                }
+            }
+            
+            // Validate managing brand
+            [parent_company_data] = await isCompanyBrandExistQuery([row.managing_brand]);
+            if (parent_company_data && parent_company_data.length == 0) {
+                row.validation_error.push("managing brand does not exists");
+            }
+            
+            // For ADD flow: Check for duplicate company name
+            if (!row.id || row.id === '') {
+                const [duplicates] = await fetchCompanyNameDuplicatesQuery([row.company_name]);
+                if (duplicates && duplicates.length > 0) {
+                    row.validation_error.push("Company name already exists. If you want to update, ensure that ID is present in column");
+                }
+            }
+            
+            // For UPDATE flow: Check if new company name conflicts with existing companies (excluding itself)
+            if (row.id && row.id !== '') {
+                const [duplicates] = await fetchCompanyNameDuplicatesForUpdateQuery([row.company_name, row.id]);
+                if (duplicates && duplicates.length > 0) {
+                    row.validation_error.push("Company name already exists for another lead");
+                }
+            }
+            
+            // Collect parent company data for later use
+            if (parent_company_data && parent_company_data.length > 0) {
+                row.parent_company_data = parent_company_data[0];
+            }
+            
+            if (row.validation_error.length > 0) {
+                return minorErrorResponse(res, excelData, "Error in file, please update and then try again.");
+            }
+        }
+        
+        // Process ADD operations
+        const addedLeads = [];
+        if (leadsToAdd.length > 0) {
+            // Prepare company details for ADD
+            const companyDetailsToAdd = leadsToAdd.map(obj => {
+                let newObj = {};
+                newObj['company_name'] = obj['company_name'];
+                newObj['industry_type'] = obj['industry_type'];
+                newObj['product'] = obj['product'];
+                newObj['parent_company_id'] = obj.parent_company_data ? obj.parent_company_data.id : null;
+                newObj['suitable_product'] = obj['suitable_product'];
+                newObj['status'] = obj['status'] || 'lead';
+                return newObj;
+            });
+            
+            // Insert new companies
+            let addedCompanies = await insertAndFetchCompanyDataFromExcelQuery(companyDetailsToAdd, user_id);
+            
+            // Process office details for added leads
+            const officeDetailsToAdd = leadsToAdd.map(obj => {
+                let newObj = {};
+                const matched = addedCompanies.find(item => item.company_name === obj.company_name);
+                if (!matched) return null;
+                
+                newObj['lead_id'] = matched.id;
+                newObj['address'] = obj['address'];
+                newObj['city'] = obj['city'];
+                newObj['state'] = obj['state'];
+                newObj['country'] = obj['country'];
+                return newObj;
+            }).filter(item => item !== null);
+            
+            let addedOffices = await insertOfficeDataFromExcelQuery(officeDetailsToAdd);
+            
+            // Process contact details for added leads
+            const contactDetailsToAdd = leadsToAdd.map(obj => {
+                let newObj = {};
+                const matched = addedCompanies.find(item => item.company_name === obj.company_name);
+                if (!matched) return null;
+                
+                newObj['lead_id'] = matched.id;
+                newObj['name'] = obj['contact_person'];
+                newObj['designation'] = obj['designation'];
+                newObj['phone'] = obj['phone_number'];
+                newObj['email'] = obj['email'];
+                return newObj;
+            }).filter(item => item !== null);
+            console.log("Contact Data to ve added" , contactDetailsToAdd);
+            
+            let addedContacts = await insertContactDataFromExcelQuery(contactDetailsToAdd, user_id);
+            
+            // Process assignee data for added leads
+            const assigneeArrayToAdd = [];
+            const createLeadArrayToAdd = [];
+            
+            for (const obj of leadsToAdd) {
+                const matched = addedCompanies.find(item => item.company_name === obj.company_name);
+                if (!matched) continue;
+                
+                let assigneeId = null;
+                if (obj.assignee && obj.assignee != '') {
+                    const [assigneePresent] = await checkUserExistsBasedOnEmailQuery([obj.assignee]);
+                    assigneeId = assigneePresent?.[0]?.id || null;
+                }
+                
+                assigneeArrayToAdd.push({
+                    lead_id: matched.id,
+                    assignee_id: assigneeId,
+                });
+                
+                createLeadArrayToAdd.push({
+                    lead_id: matched.id,
+                    user_id,
+                    comment: `${matched.company_name} Created!\n*Bulk Import*`,
+                    action: 'CREATE_LEAD',
+                });
+            }
+            
+            let addedAssigneeData = await insertAssigneeDataFromExcelQuery(assigneeArrayToAdd);
+            let addedAssigneeActions = await insertAssigneeActionFromExcelQuery(createLeadArrayToAdd);
+            
+            // Process status changes and assignments for added leads
+            if (addedAssigneeData && addedAssigneeData.length > 0) {
+                const commentActions = [];
+                const assignedActions = [];
+                
+                for (const obj of leadsToAdd) {
+                    const matched = addedCompanies.find(item => item.company_name === obj.company_name);
+                    if (!matched) continue;
+                    
+                    const matchedCommunication = addedAssigneeData.find(item => item.lead_id === matched.id);
+                    if (!matchedCommunication) continue;
+                    
+                    // Status update
+                    const statusActionMap = {
+                        'lead': 'COMMENT',
+                        'prospect': 'TO_PROSPECT',
+                        'active prospect': 'TO_ACTIVE_PROSPECT',
+                        'customer': 'TO_CUSTOMER',
+                        'expired lead': 'TO_EXPIRE'
+                    };
+                    
+                    const action = statusActionMap[obj.status] || 'COMMENT';
+                    
+                    commentActions.push({
+                        lead_id: matchedCommunication.lead_id,
+                        user_id: user_id,
+                        comment: `Converted to ${obj.status}\n*Bulk Import*`,
+                        action: action
+                    });
+                    
+                    // Assignment if assignee exists
+                    if (obj.assignee && obj.assignee != '') {
+                        const [isAssigneeExist] = await isAssigneeExistQuery([obj.assignee]);
+                        if (isAssigneeExist && isAssigneeExist[0]) {
+                            assignedActions.push({
+                                lead_id: matchedCommunication.lead_id,
+                                user_id: isAssigneeExist[0].id,
+                                comment: `${isAssigneeExist[0].id} | ${isAssigneeExist[0].first_name} ${isAssigneeExist[0].last_name}`,
+                                action: 'ASSIGNED'
+                            });
+                        }
                     }
                 }
-            const [duplicates] = await fetchCompanyNameDuplicatesQuery([excelData[i].company_name]);
-            if(excelData[i].assignee != ''){
-                [isAssignee] = await checkUserExistsBasedOnEmailQuery([excelData[i].assignee]);
-                if(isAssignee.length == 0 ){
-                    excelData[i].validation_error.push("given assignee did not exist")
+                
+                if (assignedActions.length > 0) {
+                    await insertAssigneeActionFromExcelQuery(assignedActions);
+                }
+                
+                if (commentActions.length > 0) {
+                    await insertAssigneeActionFromExcelQuery(commentActions);
                 }
             }
-
-            [parent_company_data] = await isCompanyBrandExistQuery([excelData[i].managing_brand])
-            if(parent_company_data.length == 0){
-                excelData[i].validation_error.push("managing brand does not exists")
-            }
-            if(duplicates && duplicates.length >0 && excelData[i].company_name == duplicates[0].company_name){
-                excelData[i].validation_error.push("company_name already exists")
-            }
-            if (excelData[i].validation_error.length > 0) {
-                return minorErrorResponse(res, excelData, "Error in file, please update and then try again.")
-            }
+            
+            addedLeads.push(...addedCompanies);
         }
-
-        const companyDetails = excelData.map(obj => {
-            let newObj = {}
-            newObj['company_name'] = obj['company_name']
-            newObj['industry_type'] = obj['industry_type']
-            newObj['product'] = obj['product']
-            newObj['parent_company_id'] = parent_company_data[0].id
-            newObj['suitable_product'] = obj['suitable_product']
-            newObj['status'] = obj['status'] || 'lead'
-            return newObj
-        })
-
-        let data1 = await insertAndFetchCompanyDataFromExcelQuery(companyDetails, user_id)
-
-        const officeDetails = excelData.map(obj => {
-            let newObj = {};
-            const matched = data1.find(item => item.company_name === obj.company_name);
-
-            newObj['lead_id'] = matched.id
-            newObj['address'] = obj['address']
-            newObj['city'] = obj['city']
-            newObj['state'] = obj['state']
-            newObj['country'] = obj['country']
-            return newObj
-        })
-
-        let data2 = await insertOfficeDataFromExcelQuery(officeDetails)
-
-        const contactDetails = excelData.map(obj => {
-            let newObj = {};
-            const matched = data1.find(item => item.company_name === obj.company_name);
-
-            newObj['lead_id'] = matched.id
-            newObj['name'] = obj['contact_person']
-            newObj['designation'] = obj['designation']
-            newObj['phone'] = obj['phone_number']
-            newObj['email'] = obj['email']
-            return newObj
-        })
-
-        let data3 = await insertContactDataFromExcelQuery(contactDetails, user_id)
-
-        const assigneeArray = [];
-        const createLeadArray = [];
-
-        for (const obj of excelData) {
-            const matched = data1.find(item => item.company_name === obj.company_name);
-            if (!matched) continue;
-
-            const [assigneePresent] = await checkUserExistsBasedOnEmailQuery([obj.assignee]);
-
-            assigneeArray.push({
-                lead_id: matched.id,
-                assignee_id: assigneePresent?.[0]?.id || null,
-            });
-
-            createLeadArray.push({
-                lead_id: matched.id,
-                user_id,
-                comment: `${matched.company_name} Created!\n*Bulk Import*`,
-                action: 'CREATE_LEAD',
-            });
-        }
-
-        let data4 = await insertAssigneeDataFromExcelQuery(assigneeArray)
-        let data5 = await insertAssigneeActionFromExcelQuery(createLeadArray)
-
-        if (data4 && data4.length > 0) {
-            const commentActions = [];
-            const assignedActions = [];
-
-            for (const obj of excelData) {
-                const matched = data1.find(item => item.company_name === obj.company_name);
-                if (!matched) continue;
-
-                const matchedCommunication = data4.find(item => item.id === matched.id);
-                if (!matchedCommunication) continue;
-
-                const [isAssigneeExist] = await isAssigneeExistQuery([matchedCommunication.assignee]);
-                if (!isAssigneeExist || !isAssigneeExist[0]) continue;
-
-                const statusActionMap = {
-                    'lead': 'COMMENT',
-                    'prospect': 'TO_PROSPECT',
-                    'active prospect': 'TO_ACTIVE_PROSPECT',
-                    'customer': 'TO_CUSTOMER',
-                    'expired lead': 'TO_EXPIRE'
+        
+        // Process UPDATE operations
+        const updatedLeads = [];
+        if (leadsToUpdate.length > 0) {
+            for (const obj of leadsToUpdate) {
+                // Update company details
+                const companyUpdateData = {
+                    id: obj.id,
+                    company_name: obj.company_name,
+                    industry_type: obj.industry_type,
+                    product: obj.product,
+                    parent_company_id: obj.parent_company_data && obj.parent_company_data.id,
+                    suitable_product: obj.suitable_product,
+                    status: obj.status || 'lead'
                 };
-
-                const action = statusActionMap[obj.status] || 'COMMENT';
-
-                commentActions.push({
-                    lead_id: matchedCommunication.id,
-                    user_id: matchedCommunication.assignee,
-                    comment: `Converted to ${obj.status}\n*Bulk Import*`,
-                    action: action
-                });
-
-                assignedActions.push({
-                    lead_id: matchedCommunication.id,
-                    user_id: matchedCommunication.assignee,
-                    comment: `${isAssigneeExist[0].id} | ${isAssigneeExist[0].first_name} ${isAssigneeExist[0].last_name}`,
-                    action: 'ASSIGNED'
-                });
+                
+                const updatedCompany = await updateCompanyDataQuery(companyUpdateData);
+                
+                // Update office details
+                if (obj.address || obj.city || obj.state || obj.country) {
+                    const officeUpdateData = {
+                        lead_id: obj.id,
+                        address: obj.address,
+                        city: obj.city,
+                        state: obj.state,
+                        country: obj.country
+                    };
+                    const updatedOffice  = await updateOfficeDataQuery(officeUpdateData);
+                }
+                
+                // Update contact details
+                if (obj.contact_person || obj.designation || obj.phone_number || obj.email) {
+                    const contactUpdateData = {
+                        lead_id: obj.id,
+                        name: obj.contact_person,
+                        designation: obj.designation,
+                        phone: obj.phone_number,
+                        email: obj.email
+                    };
+                    await updateContactDataQuery(contactUpdateData, user_id);
+                }
+                
+                // Update assignee if changed
+                if (obj.assignee && obj.assignee != '') {
+                    const [assigneePresent] = await checkUserExistsBasedOnEmailQuery([obj.assignee]);
+                    if (assigneePresent && assigneePresent.length > 0) {
+                        const assigneeUpdateData = {
+                            lead_id: obj.id,
+                            assignee_id: assigneePresent[0].id
+                        };
+                        await updateAssigneeDataQuery(assigneeUpdateData);
+                        
+                        // Add assignment action
+                        await insertAssigneeActionFromExcelQuery([{
+                            lead_id: obj.id,
+                            user_id: assigneePresent[0].id,
+                            comment: `${assigneePresent[0].id} | ${assigneePresent[0].first_name} ${assigneePresent[0].last_name}\n*Bulk Import Update*`,
+                            action: 'ASSIGNED'
+                        }]);
+                    }
+                }
+                
+                // Add status update action if status changed
+                const [currentLead] = await fetchLeadByIdQuery([obj.id]);
+                if (currentLead.length > 0 && currentLead[0].status !== obj.status) {
+                    const statusActionMap = {
+                        'lead': 'COMMENT',
+                        'prospect': 'TO_PROSPECT',
+                        'active prospect': 'TO_ACTIVE_PROSPECT',
+                        'customer': 'TO_CUSTOMER',
+                        'expired lead': 'TO_EXPIRE'
+                    };
+                    
+                    const action = statusActionMap[obj.status] || 'COMMENT';
+                    
+                    await insertAssigneeActionFromExcelQuery([{
+                        lead_id: obj.id,
+                        user_id: user_id,
+                        comment: `Status updated to ${obj.status}\n*Bulk Import Update*`,
+                        action: action
+                    }]);
+                }
+                
+                // Add update action
+                await insertAssigneeActionFromExcelQuery([{
+                    lead_id: obj.id,
+                    user_id: user_id,
+                    comment: `${obj.company_name} updated via bulk import`,
+                    action: 'COMMENT'
+                }]);
+                
+                updatedLeads.push(updatedCompany[0]);
             }
-
-            const data6 = await insertAssigneeActionFromExcelQuery(assignedActions);
-            const data7 = await insertAssigneeActionFromExcelQuery(commentActions);
         }
-
-        return successResponse(res, data1, 'Leads added successfully');
+        
+        // Prepare response
+        const result = {
+            added: addedLeads,
+            updated: updatedLeads,
+            summary: {
+                total: excelData.length,
+                added: leadsToAdd.length,
+                updated: leadsToUpdate.length
+            }
+        };
+        
+        return successResponse(res, result, 'Leads processed successfully');
     } catch (error) {
         return internalServerErrorResponse(res, error);
-
     }
 };
 
@@ -840,15 +1020,19 @@ export const getLeadByBrandname = async (req , res , next) => {
             "Company Name": lead.company_name,
             "Product": lead.product ?? "",
             "Industry Type": lead.industry_type ?? "",
-            "Status": lead.status ?? "",
-            "Created Date": lead.created_date,
-            "Assigned Person": lead.assigned_person ?? "",
-            "Phone Number": lead.phone ?? "",
-            "email": lead.email ?? "",
-            "Designation": lead.designation ?? "",
             "Managing Brand": lead.parent_company_name ?? "",
+            "Address": lead.address ?? "",
+            "City" : lead.city ?? "",
+            "State/province" : lead.state ?? "",
+            "Country" : lead.country ?? "",
+            "Phone Number": lead.phone ?? "",
+            "Contact Person" : lead.contact_person,
+            "Designation": lead.designation ?? "",
+            "email": lead.email ?? "",
+            "Assignee": lead.assigned_person ?? "",
+            "Lead status": lead.status ?? "",
             "Suitable Product" : lead.suitable_product ?? "", 
-            "Address": lead.address ?? ""
+            
         });
         });
 
