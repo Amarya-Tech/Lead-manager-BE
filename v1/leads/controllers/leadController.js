@@ -5,8 +5,8 @@ import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoun
 import { createDynamicUpdateQuery, toTitleCase } from "../../../utils/helper.js";
 import { advancedSearchQuery, advanceSearchWithUserIdQuery, archiveLeadQuery, checkBrandCompanyIdQuery, createLeadContactQuery, createLeadOfficeQuery, createLeadQuery, 
     createManagingBrandQuery, fetchAssignedLeadsQuery, fetchCompanyIdQuery, fetchCompanyNameDuplicatesForUpdateQuery, fetchCompanyNameDuplicatesQuery, fetchDifferentLeadsCountQuery, 
-    fetchInactiveLeadsQuery, fetchLeadByIdQuery, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadsForCsv, fetchLeadTableListQuery, 
-    fetchLeadTableListUserQuery, fetchManagingBrandsQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, 
+    fetchInactiveLeadsQuery, fetchLeadByIdQuery, fetchLeadContactsById, fetchLeadDetailQuery, fetchLeadIndustryQuery, fetchLeadListWithLastContactedQuery, fetchLeadsForCsv, fetchLeadTableListQuery, 
+    fetchLeadTableListUserQuery, fetchManagingBrandsQuery, fetchOfficeDetailsQuery, fetchPossibleInactiveLeadsQuery, fetchTodaysFollowupLeadsQuery, 
     insertAndFetchCompanyDataFromExcelQuery, insertContactDataFromExcelQuery, insertLeadIndustries, insertOfficeDataFromExcelQuery, 
     isCompanyBrandExistQuery, searchLeadForLeadsPageQuery, updateCompanyDataQuery, updateContactDataQuery, updateLeadQuery, 
     updateOfficeDataQuery} from "../model/leadQuery.js";
@@ -478,11 +478,13 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
                 row.parent_company_data = parent_company_data[0];
             }
             
+        }
+        for (let i = 0; i < excelData.length; i++) {
+            const row = excelData[i];
             if (row.validation_error.length > 0) {
                 return minorErrorResponse(res, excelData, "Error in file, please update and then try again.");
             }
         }
-        
         // Process ADD operations
         const addedLeads = [];
         if (leadsToAdd.length > 0) {
@@ -530,7 +532,6 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
                 newObj['email'] = obj['email'];
                 return newObj;
             }).filter(item => item !== null);
-            console.log("Contact Data to ve added" , contactDetailsToAdd);
             
             let addedContacts = await insertContactDataFromExcelQuery(contactDetailsToAdd, user_id);
             
@@ -646,7 +647,12 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
                         state: obj.state,
                         country: obj.country
                     };
-                    const updatedOffice  = await updateOfficeDataQuery(officeUpdateData);
+                    const [officeDetails] = await fetchOfficeDetailsQuery(obj.id)
+                    if(officeDetails && officeDetails.length > 0){
+                        const updatedOffice  = await updateOfficeDataQuery(officeUpdateData);
+                    }else{
+                        let addedOffices = await insertOfficeDataFromExcelQuery([officeUpdateData]);
+                    }
                 }
                 
                 // Update contact details
@@ -658,7 +664,13 @@ export const insertLeadsDataFromExcel = async (req, res, next) => {
                         phone: obj.phone_number,
                         email: obj.email
                     };
-                    await updateContactDataQuery(contactUpdateData, user_id);
+                    const [contactDetails] = await fetchLeadContactsById(obj.id);
+                    if(contactDetails && contactDetails.length > 0){
+                        await updateContactDataQuery(contactUpdateData, user_id);
+                    }else{
+                        let addedContact = await insertContactDataFromExcelQuery([contactUpdateData] , user_id);
+                    }
+                    
                 }
                 
                 // Update assignee if changed

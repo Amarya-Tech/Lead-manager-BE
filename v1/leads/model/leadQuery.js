@@ -635,6 +635,22 @@ export const insertOfficeDataFromExcelQuery = (data)=> {
     }
 }
 
+export const fetchOfficeDetailsQuery = async (lead_id) => {
+  try{
+    if(!lead_id){
+      return []
+    }
+    const query = `
+      select * from lead_office where lead_id = ?
+    `;
+
+    return await pool.query(query , [lead_id]);
+  }catch(error){
+      console.error("Error executing fetchOfficeDetailsQuery:", error);
+      throw error;
+  }
+}
+
 export const updateOfficeDataQuery = async (officeUpdateData) => {
   try{
     const officeUpdateDataAddress = officeUpdateData.address && officeUpdateData.address.trim()
@@ -703,6 +719,20 @@ export const insertContactDataFromExcelQuery = (data, created_by)=> {
     }
 }
 
+export const fetchLeadContactsById = async (lead_id) => {
+  try{
+    if(!lead_id){
+      return [];
+    }
+    const query = `select * from lead_contact where lead_id = ?`;
+
+    return pool.query(query , [lead_id])
+  }catch(error){
+    console.error("Error executing fetchLeadContactsById:", error);
+    throw error;
+  }
+}
+
 export const updateContactDataQuery = async (contactDetailsToAdd, user_id) => {
   try{
      const contactPersonInfo = contactDetailsToAdd.name && contactDetailsToAdd.name.trim();
@@ -761,7 +791,7 @@ export const fetchCompanyNameDuplicatesQuery = (array) => {
 export const fetchCompanyNameDuplicatesForUpdateQuery = (array) => {
 try {
     const query = `
-     SELECT id, company_name FROM leads WHERE LOWER(company_name) LIKE CONCAT('%', LOWER(?), '%') AND id != ? 
+     SELECT id, company_name FROM leads WHERE LOWER(company_name) = LOWER(?) AND id != ? 
     `;
     return pool.query(query, array);
   } catch (error) {

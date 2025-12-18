@@ -10,6 +10,16 @@ export function importExcel(fileBuffer){;
     return isCheckedData;
 }
 
+function isValidPhoneNumber(phone) {
+  const regex = /^[0-9+\-() ]+$/;
+  return regex.test(phone);
+}
+
+function isValidEmail(email) {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+}
+
 function excelChecks (excelData){
 
     const requiredFields = [
@@ -76,17 +86,23 @@ function excelChecks (excelData){
         if (!newObj.managing_brand || newObj.managing_brand.trim() === '') {
             errors.push("managing_brand is required");
         }
-        if (!newObj.address || newObj.address.trim() === '') {
-            errors.push("address is required");
-        }
-        if (newObj.contact_person && !newObj.designation ) {
-            errors.push("designation is required");
-        }
+        // if (!newObj.address || newObj.address.trim() === '') {
+        //     errors.push("address is required");
+        // }
+        // if (newObj.contact_person && !newObj.designation ) {
+        //     errors.push("designation is required");
+        // }
         if (newObj.status != 'lead' && !newObj.suitable_product ) {
             errors.push("suitable product is required");
         }
         if (newObj.phone_number){
+            if(newObj.phone_number && !isValidPhoneNumber(newObj.phone_number)){
+                errors.push("Phone number may contain only digits, +, -, (), and spaces")
+            }
             newObj.phone_number = String(newObj.phone_number || "");
+        }
+        if(newObj.email && !isValidEmail(newObj.email)){
+            errors.push("Invalid email format")
         }
 
         newObj.validation_error = errors.length > 0 ? errors.join('; ') : null;
@@ -98,7 +114,7 @@ function excelChecks (excelData){
         });
 
         return newObj;
-    })
+    });
 
     return transformed
 }

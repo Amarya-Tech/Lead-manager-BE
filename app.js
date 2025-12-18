@@ -24,7 +24,7 @@ const corsOptions = {
   path: '/',
   exposedHeaders: ['x-encryption-key'],
 };
-app.use(cors(corsOptions));
+app.use(cors(corsOptions)); 
 
 // Disable the X-Powered-By header
 app.disable('x-powered-by');
