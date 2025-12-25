@@ -44,7 +44,7 @@ export const addAssigneeToLead = async (req, res, next) => {
 
        if(description){
         const addAssigneeData = {
-            id: id,
+            id: uuidv4(),
             lead_id: lead_data.id,
             created_by: user_id,
             comment: description,
@@ -94,7 +94,7 @@ export const updateAssigneeToLead = async (req, res, next) => {
 
         if(description){
             const addAssigneeData = {
-                id: id,
+                id: uuidv4(),
                 lead_id: lead_data.id,
                 created_by: user_id,
                 comment: description,
