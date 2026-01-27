@@ -1,0 +1,66 @@
+name: Build Backend & Generate Artifact
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build backend artifact
+    runs-on: ubuntu-latest
+    environment: production
+
+    env:
+      DATABASE: ${{ secrets.DATABASE }}
+      ENCRYPTION_SECRET: ${{ secrets.ENCRYPTION_SECRET }}
+      JWT_EXPIRATION_TIME: ${{ secrets.JWT_EXPIRATION_TIME }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      LEAD_INACTIVE_DURATION: ${{ secrets.LEAD_INACTIVE_DURATION }}
+      LOCAL_SERVER_URL: ${{ secrets.LOCAL_SERVER_URL }}
+      MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
+      MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      MYSQL_PORT: ${{ secrets.MYSQL_PORT }}
+      MYSQL_USER: ${{ secrets.MYSQL_USER }}
+      NODE_ENV: ${{ secrets.NODE_ENV }}
+      PORT: ${{ secrets.PORT }}
+      PROD_SERVER_URL: ${{ secrets.PROD_SERVER_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests (optional)
+        run: npm test --if-present
+
+      - name: Build backend (if applicable)
+        run: npm run build --if-present
+
+      - name: Create ZIP artifact
+        run: |
+          zip -r backend-build.zip . \
+            -x node_modules/**\* \
+            -x .git/**\* \
+            -x .github/**\*
+
+      - name: Generate release tag
+        run: |
+          TAG="backend-v$(date +'%Y%m%d%H%M%S')"
+          echo "TAG_NAME=$TAG" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "$TAG_NAME" backend-build.zip \
+            --title "Backend Release $TAG_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
