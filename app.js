@@ -17,7 +17,7 @@ app.use(cookieParser());
 
 // CORS setup
 const corsOptions = {
-  origin: [ 'https://lead-manager-fe.vercel.app', 'http://localhost:6001', 'http://localhost:3000', 'https://lead-manager-prod.netlify.app'],
+  origin: [ 'https://lead-manager-fe.vercel.app', 'http://localhost:6001', 'http://localhost:3000', 'https://lead-manager-prod.netlify.app' , 'https://lead.technosfirst.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-encryption-key', 'x-access-token', '*'],
   credentials: true,
