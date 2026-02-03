@@ -184,6 +184,7 @@ export const fetchLeadDetailQuery = (array) => {
                     DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
                     COALESCE(office_data.office_details, JSON_ARRAY()) AS office_details,
                     COALESCE(contact_data.contact_details, JSON_ARRAY()) AS contact_details,
+					COALESCE(communication_data.comment_details, JSON_ARRAY()) AS comment_details,
                     c.parent_company_name AS parent_company_name
                 FROM leads AS l
 
@@ -220,6 +221,21 @@ export const fetchLeadDetailQuery = (array) => {
                     FROM lead_contact
                     GROUP BY lead_id
                 ) AS contact_data ON contact_data.lead_id = l.id
+                
+                LEFT JOIN (
+                    SELECT 
+                        lead_id,
+                        JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                 'created_at', created_at,
+                                'comment', comment,
+                                'action' , action,
+                                'action_date' , action_date
+                            )
+                        ) AS comment_details
+                    FROM lead_logs
+                    GROUP BY lead_id
+                ) AS communication_data ON communication_data.lead_id = l.id
 
                 LEFT JOIN users AS u ON u.id = l.assignee
                 LEFT JOIN companies AS c ON c.id = l.parent_company_id
@@ -343,6 +359,12 @@ export const advancedSearchQuery = (filters = {}) => {
       values.push(`%${filters.companyName.toLowerCase()}%`);
     }
 
+     // status
+    if(filters.status && filters.status != "") {
+      query += ` AND LOWER(leads.status) = LOWER(?) `;
+      values.push(`${filters.status.toLowerCase()}`);
+    }
+
     // Industry type
     if (filters.industryType && filters.industryType != "") {
       query += ` AND LOWER(leads.industry_type) LIKE LOWER(?) `;
@@ -413,6 +435,11 @@ export const advanceSearchWithUserIdQuery = (filters = {}, userId) => {
     if (filters.companyName && filters.companyName != "") {
       query += ` AND LOWER(leads.company_name) LIKE LOWER(?) `;
       values.push(`%${filters.companyName.toLowerCase()}%`);
+    }
+    // status
+    if(filters.status && filters.status != "") {
+      query += ` AND LOWER(leads.status) = LOWER(?) `;
+      values.push(`${filters.status.toLowerCase()}`);
     }
 
     // Industry type
@@ -983,42 +1010,66 @@ export const fetchDifferentLeadsCountQuery = (userId, isAdmin) => {
       queryParams.push(userId);
     }
 
-    const query = `
+     const query = `
         SELECT
             COUNT(*) AS total_leads,
             COUNT(CASE WHEN assignee IS NOT NULL THEN 1 END) AS assigned_leads,
             COUNT(CASE WHEN assignee IS NULL THEN 1 END) AS unassigned_leads,
 
             COUNT(CASE 
-            WHEN last_log_date IS NOT NULL 
+                WHEN last_log_date IS NOT NULL 
                 AND last_log_date < DATE_SUB(CURDATE(), INTERVAL ? DAY)
-            THEN 1
+                THEN 1
             END) AS inactive_leads,
 
             COUNT(CASE 
-            WHEN last_log_date IS NULL 
+                WHEN last_log_date IS NULL 
                 AND created_at < DATE_SUB(CURDATE(), INTERVAL ? DAY)
-            THEN 1
+                THEN 1
             END) AS possible_inactive_leads,
 
             COUNT(CASE 
-            WHEN has_today_followup = 1
-            THEN 1
-            END) AS today_followups
+                WHEN has_today_followup = 1
+                THEN 1
+            END) AS today_followups,
+
+            /* ✅ NEW COLUMN */
+            COUNT(CASE 
+                WHEN has_followup_next_7_days = 1
+                THEN 1
+            END) AS leads_follow_up_next_7_days
 
         FROM (
             SELECT
-            l.id,
-            l.assignee,
-            l.created_at,
-            MAX(logs.created_at) AS last_log_date,
-            MAX(CASE WHEN DATE(logs.action_date) = CURDATE() THEN 1 ELSE 0 END) AS has_today_followup
+                l.id,
+                l.assignee,
+                l.created_at,
+                MAX(logs.created_at) AS last_log_date,
+
+                MAX(
+                    CASE 
+                        WHEN DATE(logs.action_date) = CURDATE() 
+                        THEN 1 
+                        ELSE 0 
+                    END
+                ) AS has_today_followup,
+
+                /* ✅ FLAG FOR NEXT 7 DAYS FOLLOW-UP */
+                MAX(
+                    CASE
+                        WHEN DATE(logs.action_date) BETWEEN CURDATE()
+                             AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+                        THEN 1
+                        ELSE 0
+                    END
+                ) AS has_followup_next_7_days
+
             FROM leads l
             LEFT JOIN lead_logs logs ON logs.lead_id = l.id
             ${whereClause}
             GROUP BY l.id
         ) AS lead_summary;
-`;
+    `;
 
 
     return pool.query(query, queryParams);
