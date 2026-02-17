@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     role ENUM ('super_admin', 'admin', 'user') DEFAULT 'user',
     is_active boolean DEFAULT TRUE,
     created_at datetime DEFAULT CURRENT_TIMESTAMP,
-    updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES companies(id) ON DELETE CASCADE
 )`;
 
 export default userTable;

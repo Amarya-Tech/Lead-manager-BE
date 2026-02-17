@@ -12,6 +12,7 @@ export const checkUserEmailQuery = (array)=>{
 
 export const userRegistrationQuery = (array)=> {
     try {
+        console.log("values" . array);
         let query = `INSERT INTO users (
             id,
             first_name,

@@ -18,6 +18,18 @@ export const userRegVal = [
     body('role').notEmpty().withMessage('Role cannot be empty.')
 ]
 
+export const tenantRegVal = [
+    body('first_name').notEmpty().withMessage('First name cannot be empty.').isString().withMessage("First name must be a string"),
+    body('last_name').notEmpty().withMessage('Last name cannot be empty.').isString().withMessage("Last name must be a string"),
+    body('email').notEmpty().withMessage('Email cannot be empty.').isString().withMessage("Email cannot be empty"),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long').notEmpty().withMessage("Password cannot be empty"),
+    body('Phone')
+        .optional()
+        .matches(/^\d+$/).withMessage('Phone number must contain only digits.'),
+    body('parent_company_name').notEmpty().withMessage('Brand name cannot be empty').isString().withMessage("Brand name must be string"),
+    body('role').notEmpty().withMessage("Role cannot be empty."),
+]
+
 export const userLogVal = [
     body('email').notEmpty().withMessage('Email cannot be empty.'),
     body('password').notEmpty().withMessage('Password cannot be empty.')
