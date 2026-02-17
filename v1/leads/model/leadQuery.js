@@ -761,7 +761,7 @@ export const fetchLeadContactsById = async (lead_id) => {
 
 export const updateContactDataQuery = async (contactDetailsToAdd, user_id) => {
   try{
-     const contactPersonInfo = contactDetailsToAdd.name && contactDetailsToAdd.name.trim();
+     const contactPersonInfo = contactDetailsToAdd.phone && contactDetailsToAdd.phone.trim();
      if(!contactPersonInfo){
           console.log("No valid contact data to update.");
           return Promise.resolve([[], null]);
