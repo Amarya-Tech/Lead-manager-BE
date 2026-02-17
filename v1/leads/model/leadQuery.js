@@ -713,8 +713,7 @@ export const updateOfficeDataQuery = async (officeUpdateData) => {
 
 export const insertContactDataFromExcelQuery = (data, created_by)=> {
     try {
-        const filteredData = data.filter(item => item.name && item.name.trim() !== "");
-
+        const filteredData = data.filter(item => item.phone && item.phone.trim() !== "");
         if (filteredData.length === 0) {
             console.log("No valid contact data to insert.");
             return Promise.resolve([[], null]);
