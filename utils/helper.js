@@ -39,3 +39,8 @@ export const getTokenSessionById = async(id)=>{
         let query = `SELECT jwt_token FROM users WHERE id = ?`
         return pool.query(query,[id])
 }
+
+export const getTenantIdByUserId = async(id) => {
+    let query = `select u.tenant_id tenant_id, b.id brand_id from users u left join brands b on u.tenant_id = b.tenant_id where u.id = ?`
+    return pool.query(query , [id]);
+}

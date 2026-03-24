@@ -7,6 +7,27 @@ const passwordValidation = (value) => {
     return true;
 };
 
+
+export const sendOtp = [
+    body('email').isEmail().withMessage('Invalid email input.').notEmpty().withMessage('Email is required')
+]
+
+export const verifyOtp = [
+    body('email').isEmail().withMessage('Invalid email input').notEmpty().withMessage('Email cannot be empty'),
+    body('otp').isNumeric().withMessage('Invalid otp input').notEmpty().withMessage('Otp cannot be empty')
+]
+
+export const getStartedUserVal = [
+    body('first_name').notEmpty().withMessage('First name cannot be empty.').isString().withMessage("First name must be a string."),
+    body('last_name').notEmpty().withMessage('Last name cannot be empty.').isString().withMessage("Last name must be a string."),
+    body('email').isEmail().withMessage('Invalid email input.').notEmpty().withMessage('Email cannot be empty.'),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long').notEmpty().withMessage('Password cannot be empty.').custom(passwordValidation),
+    body('phone')
+        .optional()
+        .matches(/^[0-9\s\-()]+$/)
+        .withMessage('Phone number can contain digits, spaces, -, and parentheses only.')
+]
+
 export const userRegVal = [
     body('first_name').notEmpty().withMessage('First name cannot be empty.').isString().withMessage("First name must be a string."),
     body('last_name').notEmpty().withMessage('Last name cannot be empty.').isString().withMessage("Last name must be a string."),
@@ -14,20 +35,15 @@ export const userRegVal = [
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long').notEmpty().withMessage('Password cannot be empty.').custom(passwordValidation),
     body('phone')
         .optional()
-        .matches(/^\d+$/).withMessage('Phone number must contain only digits.'),
+        .matches(/^[0-9\s\-()]+$/)
+        .withMessage('Phone number can contain digits, spaces, -, and parentheses only.'),
     body('role').notEmpty().withMessage('Role cannot be empty.')
 ]
 
 export const tenantRegVal = [
-    body('first_name').notEmpty().withMessage('First name cannot be empty.').isString().withMessage("First name must be a string"),
-    body('last_name').notEmpty().withMessage('Last name cannot be empty.').isString().withMessage("Last name must be a string"),
+    body('tenant_name').notEmpty().withMessage('Tenant name cannot be empty.').isString().withMessage("Tenant name must be a string"),
+    body('tenant_shortname').notEmpty().withMessage('Tenant short name cannot be empty.').isString().withMessage("Tenant short name must be a string"),
     body('email').notEmpty().withMessage('Email cannot be empty.').isString().withMessage("Email cannot be empty"),
-    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long').notEmpty().withMessage("Password cannot be empty"),
-    body('Phone')
-        .optional()
-        .matches(/^\d+$/).withMessage('Phone number must contain only digits.'),
-    body('parent_company_name').notEmpty().withMessage('Brand name cannot be empty').isString().withMessage("Brand name must be string"),
-    body('role').notEmpty().withMessage("Role cannot be empty."),
 ]
 
 export const userLogVal = [

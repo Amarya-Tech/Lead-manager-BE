@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import multer from 'multer';
-import { logOutVal, setUserRoleVal, setUserStatusVal, userLogVal, userRegVal } from '../../../utils/validation.js';
-import { changeUserRole, fetchActiveUsersList, fetchUserDetail, fetchUsersList, setUserStatus, updateUserData, userLogin, userLogout, userRegistration } from '../controllers/userController.js';
+import { logOutVal, setUserRoleVal, setUserStatusVal, userLogVal, sendOtp , userRegVal, verifyOtp, getStartedUserVal } from '../../../utils/validation.js';
+import { changeUserRole, fetchActiveUsersList, fetchUserDetail, fetchUsersList, initialUserRegistration, resendOtp, sendOtpForEmailVerification, setUserStatus, updateUserData, userLogin, userLogout, userRegistration, verifyemail } from '../controllers/userController.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateUserAdminSuperAdminSession } from '../../../middlewares/allThreeRoleAuth.js';
@@ -11,9 +11,12 @@ const router = Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-
+app.post('/get-started-user-registration', getStartedUserVal , initialUserRegistration);
+app.post('/resend-otp', sendOtp , resendOtp);
 app.post('/add-new-user', authenticateAdminSuperAdminSession, userRegVal, userRegistration);
 app.post('/login', userLogVal,  userLogin);
+app.post('/send-otp', sendOtp , sendOtpForEmailVerification);
+app.post('/verify-email', verifyOtp, verifyemail)
 app.get('/logout/:id', logOutVal, userLogout);
 app.put('/active-status', authenticateUserAdminSuperAdminSession, setUserStatusVal, setUserStatus);
 app.put('/update-user-role', authenticateAdminSuperAdminSession, setUserRoleVal, changeUserRole);

@@ -10,7 +10,8 @@ import { addLeadContact, addLeadOffices, archiveLead, createLead, fetchIndustryT
     fetchTodaysFollowupLead,
     createManagingBrandAccount,
     fetchManagingBrandRecords,
-    getLeadByBrandname} from '../controllers/leadController.js';
+    getLeadByBrandname,
+    fetchFollowupForNextSevenDaysLead} from '../controllers/leadController.js';
 import { authenticateUserAdminSession } from '../../../middlewares/userAdminAuth.js';
 import { authenticateAdminSession } from '../../../middlewares/adminAuth.js';
 import { authenticateUserAdminSuperAdminSession } from '../../../middlewares/allThreeRoleAuth.js';
@@ -41,6 +42,7 @@ app.get('/matching-company-records', authenticateUserAdminSuperAdminSession,  fe
 app.post('/fetch-inactive-leads/:id', authenticateUserAdminSuperAdminSession,  fetchInactiveLead);
 app.post('/fetch-assigned-unassigned-leads/:id', authenticateAdminSuperAdminSession,  fetchAssignedUnassignedLead);
 app.post('/fetch-todays-followup-leads/:id', authenticateUserAdminSuperAdminSession,  fetchTodaysFollowupLead);
+app.post('/fetch-todays-followup-next-seven-days-leads/:id', authenticateUserAdminSuperAdminSession,  fetchFollowupForNextSevenDaysLead);
 app.get('/fetch-lead-type-count/:id', authenticateUserAdminSuperAdminSession,  fetchAllDifferentLeadTypesCount);
 app.get('/export-leads/:id',  authenticateUserAdminSuperAdminSession, logOutVal, getLeadByBrandname)
 

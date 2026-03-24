@@ -6,9 +6,7 @@ import { tenantRegVal } from '../../../utils/validation.js';
 const app = express();
 const router = Router();
 
-app.post("/resgiter" , tenantRegVal , tenantRegistration);
-
-
+app.post("/register" , tenantRegVal , tenantRegistration);
 
 app.use('/' , router);
 

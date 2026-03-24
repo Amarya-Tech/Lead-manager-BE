@@ -1,7 +1,7 @@
 import dotenv from "dotenv"
 import crypto from 'crypto-js';
 import jwt from "jsonwebtoken"
-import { getTokenSessionById } from "../utils/helper.js";
+import { getTenantIdByUserId, getTokenSessionById } from "../utils/helper.js";
 dotenv.config();
 
 export const authenticateAdminSuperAdminSession  = async (req, res, next) => {
@@ -52,11 +52,24 @@ export const authenticateAdminSuperAdminSession  = async (req, res, next) => {
             });
         }
             //ACCESS DETAILS
-            if (decoded.hasOwnProperty('user_id') && (decoded.role === "super_admin" || decoded.role === "admin")) {
+            if (decoded.hasOwnProperty('user_id') && (decoded.role === "billing_user" || decoded.role === "admin")) {
                 [accessDetails] = await getTokenSessionById(decoded.user_id);
+
                 
                 if (accessDetails && String(token) === String(accessDetails[0].jwt_token)) {
                     req.decoded = decoded;
+                    const [tenant_details] = await getTenantIdByUserId(decoded.user_id);
+
+                    if (!tenant_details || tenant_details.length === 0) {
+                        return res.status(440).json({
+                            status: "failure",
+                            message: "Tenant not found for this user"
+                        });
+                    }
+
+                    // attach tenant to request
+                    req.tenant_id = tenant_details[0].tenant_id;
+                    req.company_name = tenant_details[0].parent_company_name
                     next();
                 }else {
                     res.clearCookie('jwt', {

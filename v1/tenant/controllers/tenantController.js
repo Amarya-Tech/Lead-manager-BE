@@ -3,54 +3,58 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from 'uuid';
 import { errorResponse, internalServerErrorResponse, minorErrorResponse, notFoundResponse, successResponse } from "../../../utils/response.js";
-import { createManagingBrandQuery, isCompanyBrandExistQuery } from "../../leads/model/leadQuery.js";
-import { checkUserEmailQuery, userRegistrationQuery } from "../../users/model/userQuery.js";
+import { createManagingBrandQuery, isCompanyBrandExistQuery, isCompanyBrandExistsTenantCreation } from "../../leads/model/leadQuery.js";
+import { checkUserEmailQuery, getTenantIdQuery, userRegistrationQuery } from "../../users/model/userQuery.js";
 import { toTitleCase } from "../../../utils/helper.js";
+import { createTenant, getTenantNameQuery } from "../model/tenantQuery.js";
 dotenv.config()
 
-export const tenantRegistration = async (req , res , next) => {
-    try{
+export const tenantRegistration = async (req, res, next) => {
+    try {
         const errors = validationResult(req);
-        if(!errors.isEmpty()){
-            return errorResponse(res , errors.array() , "")
+        if (!errors.isEmpty()) {
+            return errorResponse(res, errors.array(), "");
         }
 
-        let { first_name , last_name , email , password , phone , parent_company_name , role} = req.body;
-        let id = uuidv4();
-        const company_name = toTitleCase(parent_company_name);
+        let {
+            tenant_name,
+            tenant_shortname,
+            email
+        } = req.body;
 
-        const [isCompanyExist] = await isCompanyBrandExistQuery([company_name]);
+        let tenant_id;
 
-        if (isCompanyExist.length > 0){
-            return minorErrorResponse(res, '', "Managing Brand with same name exists")
+        const [user_tenant_details] = await getTenantIdQuery([email]);
+        if(user_tenant_details.length && !user_tenant_details[0].tenant_id){
+            return errorResponse(res , '' , "Register user first ...!");
+        }
+        tenant_id = user_tenant_details[0].tenant_id;
+
+        tenant_name = toTitleCase(tenant_name);
+
+        tenant_shortname = toTitleCase(tenant_shortname);
+
+        // check tenant is exists or not 
+
+        const [tenant_details] = await getTenantNameQuery([tenant_name]);
+
+
+        if(tenant_details.length > 0){
+            return minorErrorResponse(res, "", "Tenant name is already exists");
         }
 
-        const [company_data] = await createManagingBrandQuery([
-            id,
-            company_name
-        ]);
-        const tenant_id = id
-        email = email.toLowerCase();
-        const [existingUser] = await checkUserEmailQuery([email]);
-            if (existingUser.length) {
-            return errorResponse(res, '', 'User with this email already exists.');
-        }
+        const onboarding_status = true;
 
-        const password_hash = await bcrypt.hash(password.toString(), 12);
-        
-        const [user_data] = await userRegistrationQuery([
-            id,
-            first_name,
-            last_name,
-            email,
-            password_hash,
-            phone,
-            role,
-            tenant_id
-        ]);
-        return
-        
-    }catch(error){
-        return internalServerErrorResponse(res , error);
+        // Create User linked to tenant
+        await createTenant([
+            tenant_name,
+            tenant_shortname,
+            onboarding_status
+        ], tenant_id);
+
+        return successResponse(res, "", "Tenant or Organization created successfully");
+
+    } catch (error) {
+        return internalServerErrorResponse(res, error);
     }
-}
+};

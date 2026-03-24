@@ -19,13 +19,14 @@ export const createLeadQuery = async (array)=> {
         let query = `INSERT INTO leads (
             id,
             company_name,
-            parent_company_id,
+            brand_id,
             product,
             industry_type,
             export_value,
             insured_amount,
+            tenant_id,
             created_by
-        ) VALUES (?,?,?,?,?,?,?,?)`
+        ) VALUES (?,?,?,?,?,?,?,?,?)`
 
         const [insertResult] = await pool.query(query, array);
 
@@ -95,7 +96,7 @@ export const archiveLeadQuery = (array) => {
     }
 }
 
-export const fetchLeadTableListQuery = (parentCompanyId = null , parent_company_name) => {
+export const fetchLeadTableListQuery = (brand_id , tenant_id) => {
     try {
         let query = `
       SELECT 
@@ -106,19 +107,26 @@ export const fetchLeadTableListQuery = (parentCompanyId = null , parent_company_
         l.status, 
         DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
         CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
-        c.parent_company_name AS parent_company_name
+        b.brand_name AS parent_company_name
       FROM leads l 
       LEFT JOIN users u ON u.id = l.assignee
-      LEFT JOIN companies AS c ON c.id = l.parent_company_id
+      LEFT JOIN brands AS b ON b.id = l.brand_id
       WHERE l.is_archived = FALSE
     `;
 
         const params = [];
 
-        if (parentCompanyId) {
-            query += ` AND l.parent_company_id = ?`;
-            params.push(parentCompanyId);
+        if (brand_id) {
+            query += ` AND l.brand_id = ?`;
+            params.push(brand_id);
         }
+
+        if(tenant_id){
+          query += ` AND l.tenant_id = ?`;
+            params.push(tenant_id);
+        }
+
+        const parent_company_name = null;
         if(parent_company_name && parent_company_name.toString().toLowerCase() != "All Brands".toLowerCase()){
           query += ` AND parent_company_name = ?`;
           params.push(parent_company_name);
@@ -133,7 +141,7 @@ export const fetchLeadTableListQuery = (parentCompanyId = null , parent_company_
     }
 };
 
-export const fetchLeadTableListUserQuery = (userId, parentCompanyId = null) => {
+export const fetchLeadTableListUserQuery = (userId, parentCompanyId = null , brand_id = null) => {
     try {
         let query = `
       SELECT 
@@ -144,10 +152,10 @@ export const fetchLeadTableListUserQuery = (userId, parentCompanyId = null) => {
         l.status, 
         CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,  
         DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
-        c.parent_company_name AS parent_company_name
+        b.brand_name AS brand_name
       FROM leads l
       LEFT JOIN users AS u ON u.id = l.assignee
-      LEFT JOIN companies AS c ON c.id = l.parent_company_id
+      LEFT JOIN brands AS b ON b.id = l.brand_id
       WHERE l.is_archived = FALSE 
         AND l.assignee = ?
     `;
@@ -155,8 +163,13 @@ export const fetchLeadTableListUserQuery = (userId, parentCompanyId = null) => {
         const params = [userId];
 
         if (parentCompanyId) {
-            query += ` AND l.parent_company_id = ?`;
+            query += ` AND l.tenant_id = ?`;
             params.push(parentCompanyId);
+        }
+
+        if(brand_id){
+          query += ` AND l.brand_id = ?`;
+            params.push(brand_id);
         }
 
         query += ` ORDER BY l.created_at DESC;`;
@@ -185,7 +198,7 @@ export const fetchLeadDetailQuery = (array) => {
                     COALESCE(office_data.office_details, JSON_ARRAY()) AS office_details,
                     COALESCE(contact_data.contact_details, JSON_ARRAY()) AS contact_details,
 					COALESCE(communication_data.comment_details, JSON_ARRAY()) AS comment_details,
-                    c.parent_company_name AS parent_company_name
+                    b.brand_name AS parent_company_name
                 FROM leads AS l
 
                 LEFT JOIN (
@@ -238,7 +251,7 @@ export const fetchLeadDetailQuery = (array) => {
                 ) AS communication_data ON communication_data.lead_id = l.id
 
                 LEFT JOIN users AS u ON u.id = l.assignee
-                LEFT JOIN companies AS c ON c.id = l.parent_company_id
+                LEFT JOIN brands AS b ON b.id = l.brand_id
 
                 WHERE l.is_archived = FALSE 
                 AND l.id = ?;
@@ -251,7 +264,7 @@ export const fetchLeadDetailQuery = (array) => {
     }
 }
 
-export const fetchLeadListWithLastContactedQuery = (is_admin, user_id, parent_company_id = null) => {
+export const fetchLeadListWithLastContactedQuery = (is_admin, user_id, tenant_id, brand_id = null) => {
     try {
         const queryParams = [];
 
@@ -265,13 +278,13 @@ export const fetchLeadListWithLastContactedQuery = (is_admin, user_id, parent_co
                     l.industry_type,
                     l.status,
                     logs.comment AS latest_comment,
-                    c.parent_company_name AS parent_company_name,
+                    b.brand_name AS parent_company_name,
                     DATE_FORMAT(logs.created_at, '%Y-%m-%d') AS latest_comment_date,
                     ROW_NUMBER() OVER (PARTITION BY l.id ORDER BY logs.created_at DESC) AS rn
                 FROM leads AS l
                 LEFT JOIN lead_logs AS logs 
                     ON logs.lead_id = l.id
-                LEFT JOIN companies AS c ON c.id = l.parent_company_id
+                LEFT JOIN brands AS b ON b.id = l.brand_id
                 WHERE l.is_archived = FALSE
         `;
 
@@ -280,9 +293,15 @@ export const fetchLeadListWithLastContactedQuery = (is_admin, user_id, parent_co
             queryParams.push(user_id);
         }
 
-        if (parent_company_id) {
-            query += ` AND l.parent_company_id = ?`;
-            queryParams.push(parent_company_id);
+        if(tenant_id){
+            query += ` AND l.tenant_id = ?`;
+            queryParams.push(tenant_id);
+
+        }
+
+        if (brand_id) {
+            query += ` AND l.brand_id = ?`;
+            queryParams.push(brand_id);
         }
 
         query += `
@@ -561,14 +580,15 @@ export const insertAndFetchCompanyDataFromExcelQuery = async (data, created_by) 
       item.company_name,
       item.product,
       item.industry_type,
-      item.parent_company_id,
+      item.brand_id,
       item.suitable_product,
       created_by,
-      item.status
+      item.status,
+      item.tenant_id
     ]);
 
     const insertQuery = `
-      INSERT INTO leads (id, company_name, product, industry_type, parent_company_id, suitable_product, created_by, status)
+      INSERT INTO leads (id, company_name, product, industry_type, brand_id, suitable_product, created_by, status,tenant_id)
       VALUES ?
     `;
 
@@ -598,7 +618,7 @@ export const updateCompanyDataQuery = async (companyUpdateData) => {
           company_name = ? ,
           industry_type = ?,
           product = ?,
-          parent_company_id = ?,
+          brand_id = ?,
           suitable_product = ?,
           status = ?,
           updated_at = NOW()
@@ -608,7 +628,7 @@ export const updateCompanyDataQuery = async (companyUpdateData) => {
           companyUpdateData.company_name,
           companyUpdateData.industry_type,
           companyUpdateData.product,
-          companyUpdateData.parent_company_id,
+          companyUpdateData.brand_id,
           companyUpdateData.suitable_product,
           companyUpdateData.status,
           companyUpdateData.id
@@ -806,7 +826,7 @@ export const fetchCompanyIdQuery = (array) => {
 export const fetchCompanyNameDuplicatesQuery = (array) => {
   try {
     const query = `
-     SELECT id, company_name FROM leads WHERE LOWER(company_name) LIKE CONCAT('%', LOWER(?), '%')
+     SELECT id, company_name FROM leads WHERE LOWER(company_name) LIKE CONCAT('%', LOWER(?), '%') AND tenant_id = ?
     `;
     return pool.query(query, array);
   } catch (error) {
@@ -827,12 +847,38 @@ try {
   }
 }
 
-export const fetchInactiveLeadsQuery = (is_admin, user_id) => {
+export const fetchInactiveLeadsQuery = (is_admin, user_id , tenant_id , company_name) => {
     try{
         const weeks = process.env.LEAD_INACTIVE_DURATION || 2;
         let query = '';
         let params = [];
-        if (is_admin) {
+        if(is_admin && company_name?.toLowerCase() === "amarya"){
+          query = `
+               SELECT 
+                l.id, 
+                l.company_name, 
+                l.product, 
+                l.industry_type, 
+                l.status, 
+                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
+                MAX(logs.created_at) AS last_log_date
+            FROM leads l 
+            LEFT JOIN users u 
+                ON u.id = l.assignee
+            JOIN lead_logs logs ON logs.lead_id = l.id
+            WHERE l.is_archived = FALSE 
+            AND
+                l.created_at < DATE_SUB(NOW(), INTERVAL 2 WEEK)
+            GROUP BY l.id, l.company_name, l.product, l.industry_type, l.status, l.created_at, u.first_name, u.last_name
+            HAVING (
+                last_log_date IS NULL OR
+                last_log_date < DATE_SUB(NOW(), INTERVAL ? WEEK)
+            )
+            ORDER BY l.created_at DESC;`;
+            params = [weeks];
+        }
+        else if (is_admin && company_name?.toLowerCase() !== "amarya") {
             query = `
                SELECT 
                 l.id, 
@@ -847,7 +893,9 @@ export const fetchInactiveLeadsQuery = (is_admin, user_id) => {
             LEFT JOIN users u 
                 ON u.id = l.assignee
             JOIN lead_logs logs ON logs.lead_id = l.id
-            WHERE l.is_archived = FALSE AND
+            WHERE l.is_archived = FALSE 
+            AND l.tenant_id = ?
+            AND
                 l.created_at < DATE_SUB(NOW(), INTERVAL 2 WEEK)
             GROUP BY l.id, l.company_name, l.product, l.industry_type, l.status, l.created_at, u.first_name, u.last_name
             HAVING (
@@ -855,7 +903,7 @@ export const fetchInactiveLeadsQuery = (is_admin, user_id) => {
                 last_log_date < DATE_SUB(NOW(), INTERVAL ? WEEK)
             )
             ORDER BY l.created_at DESC;`;
-            params = [weeks];
+            params = [tenant_id , weeks];
         }else{
             query = `
                SELECT 
@@ -871,7 +919,9 @@ export const fetchInactiveLeadsQuery = (is_admin, user_id) => {
             LEFT JOIN users u 
                 ON u.id = l.assignee
             JOIN lead_logs logs ON logs.lead_id = l.id
-            WHERE l.is_archived = FALSE AND l.assignee = ? AND
+            WHERE l.is_archived = FALSE AND l.assignee = ?
+              AND l.tenant_id = ?
+              AND
                 l.created_at < DATE_SUB(NOW(), INTERVAL 2 WEEK)
             GROUP BY l.id, l.company_name, l.product, l.industry_type, l.status, l.created_at, u.first_name, u.last_name
             HAVING (
@@ -879,7 +929,7 @@ export const fetchInactiveLeadsQuery = (is_admin, user_id) => {
                 last_log_date < DATE_SUB(NOW(), INTERVAL ? WEEK)
             )
             ORDER BY l.created_at DESC;`;
-            params = [user_id, weeks];
+            params = [user_id, tenant_id, weeks];
         }
 
         return pool.query(query, params);
@@ -889,14 +939,39 @@ export const fetchInactiveLeadsQuery = (is_admin, user_id) => {
     }
 }
 
-export const fetchPossibleInactiveLeadsQuery = (is_admin, user_id) => {
+export const fetchPossibleInactiveLeadsQuery = (is_admin, user_id , tenant_id , company_name) => {
     try {
         const weeks = process.env.LEAD_INACTIVE_DURATION || 2;
         const days = (weeks * 7) - 3;
         let query = '';
         let params = [];
-
-        if (is_admin) {
+        if(is_admin && company_name?.toLowerCase() === "amarya"){
+          query = `
+                SELECT 
+                    l.id, 
+                    l.company_name, 
+                    l.product, 
+                    l.industry_type, 
+                    l.status, 
+                    DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                    CONCAT(u.first_name, ' ', u.last_name) AS assigned_person,
+                    MAX(logs.created_at) AS last_log_date
+                FROM leads l 
+                LEFT JOIN users u ON u.id = l.assignee
+                LEFT JOIN lead_logs logs ON logs.lead_id = l.id
+                WHERE l.is_archived = FALSE 
+                AND
+                l.created_at < DATE_SUB(NOW(), INTERVAL 2 WEEK)
+                GROUP BY l.id, l.company_name, l.product, l.industry_type, l.status, l.created_at, u.first_name, u.last_name
+                HAVING (
+                    last_log_date IS NULL OR
+                    last_log_date < DATE_SUB(NOW(), INTERVAL ? DAY)
+                )
+                ORDER BY l.created_at DESC;
+            `;
+            params = [days];
+        }
+        else if (is_admin && company_name?.toLowerCase() !== "amarya") {
             query = `
                 SELECT 
                     l.id, 
@@ -910,7 +985,9 @@ export const fetchPossibleInactiveLeadsQuery = (is_admin, user_id) => {
                 FROM leads l 
                 LEFT JOIN users u ON u.id = l.assignee
                 LEFT JOIN lead_logs logs ON logs.lead_id = l.id
-                WHERE l.is_archived = FALSE AND
+                WHERE l.is_archived = FALSE 
+                AND l.tenant_id = ?
+                AND
                 l.created_at < DATE_SUB(NOW(), INTERVAL 2 WEEK)
                 GROUP BY l.id, l.company_name, l.product, l.industry_type, l.status, l.created_at, u.first_name, u.last_name
                 HAVING (
@@ -919,7 +996,7 @@ export const fetchPossibleInactiveLeadsQuery = (is_admin, user_id) => {
                 )
                 ORDER BY l.created_at DESC;
             `;
-            params = [days];
+            params = [tenant_id , days];
         } else {
             query = `
                 SELECT 
@@ -934,7 +1011,9 @@ export const fetchPossibleInactiveLeadsQuery = (is_admin, user_id) => {
                 FROM leads l 
                 LEFT JOIN users u ON u.id = l.assignee
                 LEFT JOIN lead_logs logs ON logs.lead_id = l.id
-                WHERE l.is_archived = FALSE AND l.assignee = ? AND
+                WHERE l.is_archived = FALSE AND l.assignee = ? 
+                AND l.tenant_id = ?
+                AND
                 l.created_at < DATE_SUB(NOW(), INTERVAL 2 WEEK)
                 GROUP BY l.id, l.company_name, l.product, l.industry_type, l.status, l.created_at, u.first_name, u.last_name
                 HAVING (
@@ -943,7 +1022,7 @@ export const fetchPossibleInactiveLeadsQuery = (is_admin, user_id) => {
                 )
                 ORDER BY l.created_at DESC;
             `;
-            params = [user_id, days];
+            params = [user_id, tenant_id , days];
         }
 
         return pool.query(query, params);
@@ -953,61 +1032,115 @@ export const fetchPossibleInactiveLeadsQuery = (is_admin, user_id) => {
     }
 };
 
-export const fetchAssignedLeadsQuery = (action) => {
+export const fetchAssignedLeadsQuery = (action , tenant_id , company_name) => {
   try {
     let query ='';
-    if(action == 'assigned'){
-        query = `
-           SELECT 
-                l.id, 
-                l.company_name, 
-                l.product, 
-                l.industry_type, 
-                l.status, 
-                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
-                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
-            FROM 
-                leads l
-            LEFT JOIN 
-                users u ON u.id = l.assignee
-            WHERE 
-                l.assignee IS NOT NULL;`
-    }else if(action = 'unassigned'){
-        query = `
-           SELECT 
-                l.id, 
-                l.company_name, 
-                l.product, 
-                l.industry_type, 
-                l.status, 
-                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
-                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
-            FROM 
-                leads l
-            LEFT JOIN 
-                users u ON u.id = l.assignee
-            WHERE 
-                l.assignee IS NULL;`
+
+    if(company_name?.toLowerCase() === "amarya"){
+      if(action == 'assigned'){
+          query = `
+             SELECT 
+                  l.id, 
+                  l.company_name, 
+                  l.product, 
+                  l.industry_type, 
+                  l.status, 
+                  DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                  CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+              FROM 
+                  leads l
+              LEFT JOIN 
+                  users u ON u.id = l.assignee
+              WHERE
+                  l.assignee IS NOT NULL;`
+      }else if(action = 'unassigned'){
+          query = `
+             SELECT 
+                  l.id, 
+                  l.company_name, 
+                  l.product, 
+                  l.industry_type, 
+                  l.status, 
+                  DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                  CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+              FROM 
+                  leads l
+              LEFT JOIN 
+                  users u ON u.id = l.assignee
+              WHERE 
+                  l.assignee IS NULL;`
+      }
+     
+      return pool.query(query);
+    }else{
+      if(action == 'assigned'){
+          query = `
+             SELECT 
+                  l.id, 
+                  l.company_name, 
+                  l.product, 
+                  l.industry_type, 
+                  l.status, 
+                  DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                  CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+              FROM 
+                  leads l
+              LEFT JOIN 
+                  users u ON u.id = l.assignee
+              WHERE
+                  l.tenant_id = ? AND 
+                  l.assignee IS NOT NULL;`
+      }else if(action = 'unassigned'){
+          query = `
+             SELECT 
+                  l.id, 
+                  l.company_name, 
+                  l.product, 
+                  l.industry_type, 
+                  l.status, 
+                  DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                  CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+              FROM 
+                  leads l
+              LEFT JOIN 
+                  users u ON u.id = l.assignee
+              WHERE 
+                  l.tenant_id = ? AND 
+                  l.assignee IS NULL;`
+      }
+     
+      return pool.query(query , tenant_id);
     }
-   
-    return pool.query(query);
   } catch (error) {
     console.error("Error executing fetchAssignedLeadsQuery:", error);
     throw error;
   }
 };
 
-export const fetchDifferentLeadsCountQuery = (userId, isAdmin) => {
+export const fetchDifferentLeadsCountQuery = (userId, isAdmin , brand_id , company_name = '') => {
   try {
     const weeks = process.env.LEAD_INACTIVE_DURATION || 2;
     const inactiveDays = weeks * 7;            
     const possibleInactiveDays = inactiveDays - 3;
     let queryParams = [inactiveDays, possibleInactiveDays];
     let whereClause = '';
+    if(company_name?.toLowerCase() !== "amarya"){
+      whereClause = 'WHERE ';
+    }
 
     if (!isAdmin) {
-      whereClause = 'WHERE l.assignee = ?';
-      queryParams.push(userId);
+      whereClause += 'l.assignee = ? and tenant_id = ?';
+      queryParams.push(userId , brand_id);
+    }
+
+    // if(isAdmin && company_name?.toLowerCase() !== "amarya"){
+    //   whereClause += 'brand_id = ?'
+    //   queryParams.push(brand_id)
+    // }
+
+    if(isAdmin && brand_id){
+      whereClause += 'tenant_id = ?'
+      queryParams.push(brand_id)
     }
 
      const query = `
@@ -1079,30 +1212,112 @@ export const fetchDifferentLeadsCountQuery = (userId, isAdmin) => {
   }
 };
 
-export const fetchTodaysFollowupLeadsQuery = () => {
+export const fetchTodaysFollowupLeadsQuery = (tenant_id , company_name) => {
   try {
-    let query =`
-           SELECT 
-                l.id, 
-                l.company_name, 
-                l.product, 
-                l.industry_type, 
-                l.status, 
-                DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
-                CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
-            FROM 
-                leads l
-            LEFT JOIN 
-                users u ON u.id = l.assignee
-            LEFT JOIN lead_logs logs ON logs.lead_id = l.id
-            WHERE 
-                DATE(logs.action_date) = CURDATE()
-                GROUP BY 
-            l.id;`
-   
-    return pool.query(query);
+    if(company_name?.toLowerCase() === "amarya"){
+      let query =`
+             SELECT 
+                  l.id, 
+                  l.company_name, 
+                  l.product, 
+                  l.industry_type, 
+                  l.status, 
+                  DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                  CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+              FROM 
+                  leads l
+              LEFT JOIN 
+                  users u ON u.id = l.assignee
+              LEFT JOIN lead_logs logs ON logs.lead_id = l.id
+              WHERE 
+                  DATE(logs.action_date) = CURDATE()
+                  GROUP BY 
+              l.id;`
+     
+      return pool.query(query);
+    }else{  
+      let query =`
+             SELECT 
+                  l.id, 
+                  l.company_name, 
+                  l.product, 
+                  l.industry_type, 
+                  l.status, 
+                  DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+                  CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+              FROM 
+                  leads l
+              LEFT JOIN 
+                  users u ON u.id = l.assignee
+              LEFT JOIN lead_logs logs ON logs.lead_id = l.id
+              WHERE 
+                  l.tenant_id = ? AND
+                  DATE(logs.action_date) = CURDATE()
+                  GROUP BY 
+              l.id;`
+     
+      return pool.query(query , tenant_id);
+    }
+
   } catch (error) {
-    console.error("Error executing fetchAssignedLeadsQuery:", error);
+    console.error("Error executing fetchTodaysFollowupLeadsQuery:", error);
+    throw error;
+  }
+};
+
+
+export const fetchTodaysFollowupForNextSevenDaysLeadsQuery = (tenant_id , company_name) => {
+  try {
+    if(company_name?.toLowerCase() === "amarya"){
+      const query = `
+          SELECT 
+              l.id, 
+              l.company_name, 
+              l.product, 
+              l.industry_type, 
+              l.status, 
+              DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+              CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+          FROM leads l
+          LEFT JOIN users u 
+              ON u.id = l.assignee 
+          LEFT JOIN lead_logs logs 
+              ON logs.lead_id = l.id
+          WHERE 
+              DATE(logs.action_date) BETWEEN CURDATE() 
+              AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+          GROUP BY l.id;
+      `;
+  
+      return pool.query(query);
+    }else{
+      const query = `
+          SELECT 
+              l.id, 
+              l.company_name, 
+              l.product, 
+              l.industry_type, 
+              l.status, 
+              DATE_FORMAT(l.created_at, '%Y-%m-%d') AS created_date,
+              CONCAT(u.first_name, ' ', u.last_name) AS assigned_person
+          FROM leads l
+          LEFT JOIN users u 
+              ON u.id = l.assignee 
+          LEFT JOIN lead_logs logs 
+              ON logs.lead_id = l.id
+          WHERE 
+              l.tenant_id = ?
+              AND DATE(logs.action_date) BETWEEN CURDATE() 
+              AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+          GROUP BY l.id;
+      `;
+  
+      return pool.query(query, tenant_id);
+    }
+
+
+  } catch (error) {
+    console.error("Error executing fetchTodaysFollowupForNextSevenDaysLeadsQuery:", error);
     throw error;
   }
 };
@@ -1110,7 +1325,7 @@ export const fetchTodaysFollowupLeadsQuery = () => {
 export const checkBrandCompanyIdQuery = (array) => {
   try {
     const query = `
-     SELECT id, parent_company_name FROM companies WHERE id = ?
+     SELECT id, brand_name FROM brands WHERE tenant_id = ? and id = ? 
     `;
     return pool.query(query, array);
   } catch (error) {
@@ -1119,20 +1334,50 @@ export const checkBrandCompanyIdQuery = (array) => {
   }
 };
 
-export const fetchManagingBrandsQuery = () => {
+export const fetchManagingBrandsQuery = (tenant_id) => {
   try {
-    const query = `SELECT id, parent_company_name FROM companies`;
-    return pool.query(query);
+    const query = `SELECT id, brand_name FROM brands where tenant_id = ?`;
+    return pool.query(query , [tenant_id]);
   } catch (error) {
+    console.error("Error executing fetchManagingBrandsQuery:", error);
+    throw error; 
+  }
+};
+
+export const fetchManagingBrandByTenantId = (array) => {
+  try{
+    const query = `SELECT id , brand_name from brands where tenant_id = ? and id = ?`;
+    return pool.query(query , array);
+  }catch(error){
+    console.error("Error executing fetchManagingBrandByTenantId:", error);
+    throw error;
+  }
+} 
+
+export const fetchManagingBrandById = (array) => {
+  try{
+    const query = `SELECT id , brand_name from brands where tenant_id = ? and id = ?`;
+    return pool.query(query , array);
+  }catch(error){
     console.error("Error executing fetchManagingBrandsQuery:", error);
     throw error;
   }
-};
+} 
+
+export const isCompanyBrandExistsTenantCreation = (array) => {
+  try{
+    const query = `SELECT id , parent_company_name FROM companies WHERE parent_company_name = ?`;
+    return pool.query(query , array)
+  }catch(error){
+    console.error("Erro executing isCompanyBrandExistsTenantCreation" , error);
+    throw error;
+  }
+}
 
 export const isCompanyBrandExistQuery = (array) => {
   try {
     const query = `
-     SELECT id, parent_company_name FROM companies WHERE parent_company_name = ?
+     SELECT id, brand_name FROM brands WHERE brand_name = ? AND tenant_id = ?
     `;
     return pool.query(query, array);
   } catch (error) {
@@ -1143,10 +1388,11 @@ export const isCompanyBrandExistQuery = (array) => {
 
 export const createManagingBrandQuery = async (array)=> {
     try {
-        let query = `INSERT INTO companies (
+        let query = `INSERT INTO brands (
             id,
-            parent_company_name
-        ) VALUES (?,?)`
+            brand_name,
+            tenant_id
+        ) VALUES (?,?,?)`
 
         return pool.query(query, array);
     } catch (error) {
@@ -1172,13 +1418,13 @@ export const fetchLeadsForCsv = async (parentCompanyId = null , parent_company_n
         lo.state as state,
         lc.phone as phone,
         l.suitable_product as suitable_product,
-        c.parent_company_name AS parent_company_name,
+        b.brand_name AS brand_name,
         lc.email as email,
         lc.name as contact_person,  
         lc.designation as designation
       FROM leads l 
       LEFT JOIN users u ON u.id = l.assignee
-      LEFT JOIN companies AS c ON c.id = l.parent_company_id
+      LEFT JOIN brands AS b ON b.id = l.brand_id
       LEFT JOIN lead_contact as lc on lc.lead_id = l.id
       LEFT JOIN lead_office as lo on lo.lead_id = l.id
       WHERE l.is_archived = FALSE
@@ -1187,11 +1433,11 @@ export const fetchLeadsForCsv = async (parentCompanyId = null , parent_company_n
         const params = [];
 
         if (parentCompanyId) {
-            query += ` AND l.parent_company_id = ?`;
+            query += ` AND l.brand_id = ?`;
             params.push(parentCompanyId);
         }
         if(parent_company_name && parent_company_name.toString().toLowerCase() != "All Brands".toLowerCase()){
-          query += ` AND parent_company_name = ?`;
+          query += ` AND brand_name = ?`;
           params.push(parent_company_name);
         }
 

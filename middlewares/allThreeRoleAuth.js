@@ -1,7 +1,7 @@
 import dotenv from "dotenv"
 import crypto from 'crypto-js';
 import jwt from "jsonwebtoken"
-import { getTokenSessionById } from "../utils/helper.js";
+import { getTenantIdByUserId, getTokenSessionById } from "../utils/helper.js";
 dotenv.config();
 
 export const authenticateUserAdminSuperAdminSession  = async (req, res, next) => {
@@ -22,7 +22,7 @@ export const authenticateUserAdminSuperAdminSession  = async (req, res, next) =>
         });
     }
     try {
-        let decoded, accessDetails, validAccess = false, jwtErrorMessage = '';
+        let decoded, accessDetails, tenant_details, validAccess = false, jwtErrorMessage = '';
         let decrypted_user_id;
         try {
             const bytes = crypto.AES.decrypt(encrypted_user_id, process.env.ENCRYPTION_SECRET);
@@ -52,11 +52,22 @@ export const authenticateUserAdminSuperAdminSession  = async (req, res, next) =>
             });
         }
             //ACCESS DETAILS
-            if (decoded.hasOwnProperty('user_id') && (decoded.role === "user" || decoded.role === "admin" || decoded.role === "super_admin")) {
+            if (decoded.hasOwnProperty('user_id') && (decoded.role === "user" || decoded.role === "admin" || decoded.role === "billing_user")) {
                 [accessDetails] = await getTokenSessionById(decoded.user_id);
                 
                 if (accessDetails && String(token) === String(accessDetails[0].jwt_token)) {
                     req.decoded = decoded;
+                    const [tenant_details] = await getTenantIdByUserId(decoded.user_id);
+
+                    if (!tenant_details || tenant_details.length === 0) {
+                        return res.status(440).json({
+                            status: "failure",
+                            message: "Tenant not found for this user"
+                        });
+                    }
+
+                    // attach tenant to request
+                    req.tenant_id = tenant_details[0].tenant_id;
                     next();
                 }else {
                     res.clearCookie('jwt', {
